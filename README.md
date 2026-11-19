@@ -11,6 +11,7 @@ Plataforma web para coordinar servicios médicos, gestionar reservaciones y dar 
 - CRM de clientes con búsqueda, edición, historial e interacciones.
 - ERP de reservaciones con filtros por texto, estado y fecha.
 - Cancelación transaccional de citas y liberación automática de horarios.
+- Reprogramación de citas conservando el folio y validando la especialidad.
 - Registro de cancelaciones en el historial del CRM.
 - Persistencia local con SQLite.
 

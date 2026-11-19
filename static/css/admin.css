@@ -744,3 +744,154 @@ td strong {
         grid-template-columns: 1fr;
     }
 }
+
+/* ERP 7B - REPROGRAMACIÓN */
+.erp-reschedule-button {
+    padding: 9px 13px;
+    margin-right: 7px;
+    border: none;
+    border-radius: 8px;
+    background: #edf4ff;
+    color: #1769e0;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.erp-reschedule-button:hover {
+    background: #dceaff;
+}
+
+.erp-reschedule-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+    background: rgba(15, 23, 42, .55);
+}
+
+.erp-reschedule-modal[hidden] {
+    display: none;
+}
+
+.erp-modal-panel {
+    width: min(520px, 100%);
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 30px;
+    border-radius: 20px;
+    background: #fff;
+    box-shadow: 0 25px 70px rgba(0, 0, 0, .15);
+}
+
+.erp-modal-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 22px;
+}
+
+.erp-modal-header h2 {
+    margin: 10px 0;
+    font-size: 23px;
+    color: #182335;
+}
+
+.erp-modal-header p {
+    color: #8993a2;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.erp-modal-close {
+    align-self: flex-start;
+    border: none;
+    background: transparent;
+    color: #7b8493;
+    font-size: 28px;
+    cursor: pointer;
+}
+
+.erp-current-booking {
+    padding: 16px;
+    margin-bottom: 22px;
+    border-radius: 11px;
+    background: #f3f7ff;
+}
+
+.erp-current-booking strong {
+    color: #1769e0;
+    font-size: 12px;
+}
+
+.erp-current-booking p {
+    margin: 8px 0 0;
+    color: #526174;
+    font-size: 12px;
+    line-height: 1.7;
+}
+
+.erp-field {
+    margin-bottom: 18px;
+}
+
+.erp-field label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.erp-field select,
+.erp-field input {
+    width: 100%;
+    height: 46px;
+    padding: 0 12px;
+    border: 1px solid var(--admin-border);
+    border-radius: 10px;
+    background: white;
+    font-family: inherit;
+    font-size: 13px;
+}
+
+.erp-field select:disabled {
+    opacity: .55;
+}
+
+.erp-reschedule-feedback {
+    color: #697486;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.erp-modal-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 23px;
+}
+
+.erp-modal-actions > button {
+    flex: 1;
+    min-height: 46px;
+    margin: 0;
+}
+
+.erp-secondary-button {
+    border: 1px solid var(--admin-border);
+    border-radius: 10px;
+    background: white;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+@media (max-width: 600px) {
+    .erp-modal-panel {
+        padding: 22px;
+    }
+
+    .erp-modal-actions {
+        flex-direction: column;
+    }
+}

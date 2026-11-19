@@ -44,6 +44,22 @@
             </div>
         </section>
         <footer class="admin-footer"><span>MediBot 360 · ERP</span><span>Administración de reservaciones</span></footer>
+        <div id="erp-reschedule-modal" class="erp-reschedule-modal" hidden>
+            <section class="erp-modal-panel" role="dialog" aria-modal="true" aria-labelledby="erp-modal-title">
+                <div class="erp-modal-header">
+                    <div><span class="breadcrumb">MEDIBOT 360 / ERP</span><h2 id="erp-modal-title">Reprogramar reservación</h2><p>Selecciona el nuevo profesional, fecha y horario.</p></div>
+                    <button type="button" id="erp-reschedule-close" class="erp-modal-close" aria-label="Cerrar">×</button>
+                </div>
+                <div class="erp-current-booking"><strong>Reservación actual</strong><p id="erp-reschedule-current"></p></div>
+                <form id="erp-reschedule-form">
+                    <div class="erp-field"><label for="erp-reschedule-professional">Profesional</label><select id="erp-reschedule-professional" required></select></div>
+                    <div class="erp-field"><label for="erp-reschedule-date">Nueva fecha</label><input type="date" id="erp-reschedule-date" required></div>
+                    <div class="erp-field"><label for="erp-reschedule-schedule">Nuevo horario</label><select id="erp-reschedule-schedule" required></select></div>
+                    <p id="erp-reschedule-feedback" class="erp-reschedule-feedback" role="status" aria-live="polite"></p>
+                    <div class="erp-modal-actions"><button type="button" id="erp-reschedule-back" class="erp-secondary-button">Volver</button><button type="submit" id="erp-reschedule-submit" class="admin-primary-button" disabled>Confirmar cambio</button></div>
+                </form>
+            </section>
+        </div>
     </main>
 </body>
 </html>

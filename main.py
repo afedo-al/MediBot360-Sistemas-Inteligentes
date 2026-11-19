@@ -818,6 +818,8 @@ async def erp_list_appointments(
                 a.id,
                 a.folio,
                 a.status,
+                p.id AS professional_id,
+                sp.id AS specialty_id,
                 a.created_at,
                 c.full_name AS customer_name,
                 c.email AS customer_email,
@@ -911,4 +913,233 @@ async def erp_cancel_appointment(
     return {
         "success": True,
         "message": "Reservación cancelada y horario liberado."
+    }
+
+
+# ===================================================
+# ETAPA 7B - REPROGRAMAR RESERVACIONES
+# ===================================================
+
+class RescheduleAppointmentRequest(BaseModel):
+    schedule_id: int = Field(gt=0)
+
+
+def validate_reschedule_date(value: str) -> date:
+    try:
+        selected = date.fromisoformat(value)
+    except (ValueError, TypeError):
+        raise HTTPException(
+            status_code=400,
+            detail="Fecha inválida. Utiliza YYYY-MM-DD."
+        )
+
+    today = date.today()
+
+    if not (today < selected <= today + timedelta(days=14)):
+        raise HTTPException(
+            status_code=400,
+            detail="Selecciona una fecha entre mañana y los próximos 14 días."
+        )
+
+    if selected.weekday() == 6:
+        raise HTTPException(
+            status_code=400,
+            detail="No hay citas los domingos."
+        )
+
+    return selected
+
+
+@app.get("/api/admin/appointments/{appointment_id}/reschedule-options")
+async def erp_reschedule_options(
+    appointment_id: int,
+    request: Request,
+    professional_id: int,
+    appointment_date: str = Query(default="", max_length=10)
+):
+    if not get_current_admin(request):
+        raise HTTPException(
+            status_code=401,
+            detail="Sesión administrativa requerida."
+        )
+
+    selected_date = validate_reschedule_date(appointment_date)
+
+    with get_db() as db:
+        appointment = db.execute("""
+            SELECT a.id, a.status, p.specialty_id
+            FROM appointments a
+            INNER JOIN professionals p ON a.professional_id = p.id
+            WHERE a.id = ?
+        """, (appointment_id,)).fetchone()
+
+        if not appointment:
+            raise HTTPException(
+                status_code=404,
+                detail="Reservación no encontrada."
+            )
+
+        if appointment["status"] != "confirmed":
+            raise HTTPException(
+                status_code=409,
+                detail="Solo se pueden reprogramar reservaciones confirmadas."
+            )
+
+        professional = db.execute("""
+            SELECT id
+            FROM professionals
+            WHERE id = ?
+              AND specialty_id = ?
+              AND active = 1
+        """, (professional_id, appointment["specialty_id"])).fetchone()
+
+        if not professional:
+            raise HTTPException(
+                status_code=400,
+                detail="El profesional debe pertenecer a la misma especialidad."
+            )
+
+        schedules = db.execute("""
+            SELECT id, professional_id, appointment_date, start_time, end_time
+            FROM schedules
+            WHERE professional_id = ?
+              AND appointment_date = ?
+              AND status = 'available'
+            ORDER BY start_time
+        """, (professional_id, selected_date.isoformat())).fetchall()
+
+    return {
+        "success": True,
+        "total": len(schedules),
+        "data": [dict(schedule) for schedule in schedules]
+    }
+
+
+@app.post("/api/admin/appointments/{appointment_id}/reschedule")
+async def erp_reschedule_appointment(
+    appointment_id: int,
+    data: RescheduleAppointmentRequest,
+    request: Request
+):
+    admin = get_current_admin(request)
+
+    if not admin:
+        raise HTTPException(
+            status_code=401,
+            detail="Sesión administrativa requerida."
+        )
+
+    with get_db() as db:
+        appointment = db.execute("""
+            SELECT
+                a.id,
+                a.folio,
+                a.customer_id,
+                a.schedule_id,
+                a.professional_id,
+                a.status,
+                p.specialty_id
+            FROM appointments a
+            INNER JOIN professionals p ON a.professional_id = p.id
+            WHERE a.id = ?
+        """, (appointment_id,)).fetchone()
+
+        if not appointment:
+            raise HTTPException(
+                status_code=404,
+                detail="Reservación no encontrada."
+            )
+
+        if appointment["status"] != "confirmed":
+            raise HTTPException(
+                status_code=409,
+                detail="Solo se pueden reprogramar reservaciones confirmadas."
+            )
+
+        new_schedule = db.execute("""
+            SELECT
+                s.id,
+                s.professional_id,
+                s.appointment_date,
+                s.status,
+                p.specialty_id
+            FROM schedules s
+            INNER JOIN professionals p ON s.professional_id = p.id
+            WHERE s.id = ?
+        """, (data.schedule_id,)).fetchone()
+
+        if not new_schedule:
+            raise HTTPException(
+                status_code=404,
+                detail="El nuevo horario no existe."
+            )
+
+        validate_reschedule_date(new_schedule["appointment_date"])
+
+        if new_schedule["specialty_id"] != appointment["specialty_id"]:
+            raise HTTPException(
+                status_code=400,
+                detail="El nuevo profesional debe pertenecer a la misma especialidad."
+            )
+
+        if new_schedule["status"] != "available":
+            raise HTTPException(
+                status_code=409,
+                detail="El nuevo horario ya no está disponible."
+            )
+
+        released = db.execute("""
+            UPDATE schedules
+            SET status = 'available'
+            WHERE id = ? AND status = 'reserved'
+        """, (appointment["schedule_id"],))
+
+        if released.rowcount != 1:
+            raise HTTPException(
+                status_code=409,
+                detail="El horario actual no se pudo liberar."
+            )
+
+        reserved = db.execute("""
+            UPDATE schedules
+            SET status = 'reserved'
+            WHERE id = ? AND status = 'available'
+        """, (data.schedule_id,))
+
+        if reserved.rowcount != 1:
+            raise HTTPException(
+                status_code=409,
+                detail="El nuevo horario ya no está disponible."
+            )
+
+        updated_appointment = db.execute("""
+            UPDATE appointments
+            SET schedule_id = ?, professional_id = ?
+            WHERE id = ? AND status = 'confirmed'
+        """, (
+            data.schedule_id,
+            new_schedule["professional_id"],
+            appointment_id
+        ))
+
+        if updated_appointment.rowcount != 1:
+            raise HTTPException(
+                status_code=409,
+                detail="La reservación cambió mientras se procesaba."
+            )
+
+        db.execute("""
+            INSERT INTO interactions
+            (customer_id, message, response, channel)
+            VALUES (?, ?, ?, 'crm')
+        """, (
+            appointment["customer_id"],
+            f"Reservación reprogramada: {appointment['folio']}",
+            f"Nuevo horario: {new_schedule['appointment_date']} "
+            f"(administrador: {admin['username']})."
+        ))
+
+    return {
+        "success": True,
+        "message": "Reservación reprogramada correctamente."
     }
