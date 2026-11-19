@@ -4,7 +4,7 @@
     --surface: #f5f7fa;
     --text: #172033;
     --muted: #697386;
-    --primary: #3478f6;
+    --primary: #1769e0;
     --border: #e8ecf2;
     --radius: 20px;
 }
@@ -55,10 +55,10 @@ a {
 .brand-icon {
     display: inline-grid;
     place-items: center;
-    width: 32px;
-    height: 32px;
+    width: 35px;
+    height: 35px;
     margin-right: 6px;
-    border-radius: 10px;
+    border-radius: 11px;
     background: var(--primary);
     color: white;
 }
@@ -67,7 +67,8 @@ a {
     display: flex;
     gap: 32px;
     color: var(--muted);
-    font-size: 14px;
+    font-size: 19px;
+    font-weight: 700;
 }
 
 .nav-links a:hover {

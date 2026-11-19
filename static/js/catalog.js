@@ -56,7 +56,24 @@
         form.reset();
         $(`${type}-id`).value = "";
         $(`${type}-active`).checked = true;
-        form.hidden = true;
+        closeModal(type);
+    }
+
+    function openModal(type, editing) {
+        const modal = $(`${type}-modal`);
+        const form = $(`${type}-form`);
+        const title = $(`${type}-modal-title`);
+        title.textContent = `${editing ? "Editar" : "Nueva"} ${type === "specialty" ? "especialidad" : "profesional"}`;
+        modal.hidden = false;
+        document.body.classList.add("modal-open");
+        form.querySelector("input:not([type='hidden'])").focus();
+    }
+
+    function closeModal(type) {
+        $(`${type}-modal`).hidden = true;
+        if ($("specialty-modal").hidden && $("professional-modal").hidden) {
+            document.body.classList.remove("modal-open");
+        }
     }
 
     function editSpecialty(id) {
@@ -67,8 +84,7 @@
         $("specialty-price").value = item.price;
         $("specialty-description").value = item.description || "";
         $("specialty-active").checked = Boolean(item.active);
-        $("specialty-form").hidden = false;
-        $("specialty-name").focus();
+        openModal("specialty", true);
     }
 
     function editProfessional(id) {
@@ -79,8 +95,7 @@
         $("professional-email").value = item.email || "";
         $("professional-specialty").value = item.specialty_id;
         $("professional-active").checked = Boolean(item.active);
-        $("professional-form").hidden = false;
-        $("professional-name").focus();
+        openModal("professional", true);
     }
 
     async function load() {
@@ -101,22 +116,22 @@
 
     $("specialty-new").addEventListener("click", () => {
         resetForm("specialty");
-        $("specialty-form").hidden = false;
-        $("specialty-name").focus();
+        openModal("specialty", false);
     });
     $("professional-new").addEventListener("click", () => {
         resetForm("professional");
         populateSpecialties();
-        $("professional-form").hidden = false;
-        $("professional-name").focus();
+        openModal("professional", false);
     });
     document.addEventListener("click", (event) => {
         const specialty = event.target.closest("[data-specialty]");
         const professional = event.target.closest("[data-professional]");
         const cancel = event.target.closest("[data-catalog-cancel]");
+        const close = event.target.closest("[data-catalog-close]");
         if (specialty) editSpecialty(Number(specialty.dataset.specialty));
         if (professional) editProfessional(Number(professional.dataset.professional));
         if (cancel) resetForm(cancel.dataset.catalogCancel);
+        if (close) closeModal(close.dataset.catalogClose);
     });
     $("specialty-form").addEventListener("submit", async (event) => {
         event.preventDefault();
@@ -153,6 +168,19 @@
             showFeedback("Profesional guardado correctamente.");
             await load();
         } catch (error) { showFeedback(error.message, true); }
+    });
+    $("specialty-form-slot").appendChild($("specialty-form"));
+    $("professional-form-slot").appendChild($("professional-form"));
+    ["specialty", "professional"].forEach((type) => {
+        const modal = $(`${type}-modal`);
+        modal.addEventListener("click", (event) => {
+            if (event.target === modal) closeModal(type);
+        });
+    });
+    document.addEventListener("keydown", (event) => {
+        if (event.key !== "Escape") return;
+        if (!$("specialty-modal").hidden) closeModal("specialty");
+        if (!$("professional-modal").hidden) closeModal("professional");
     });
     load();
 })();
