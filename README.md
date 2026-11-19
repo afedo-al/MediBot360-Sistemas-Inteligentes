@@ -12,6 +12,8 @@ Plataforma web para coordinar servicios médicos, gestionar reservaciones y dar 
 - ERP de reservaciones con filtros por texto, estado y fecha.
 - Cancelación transaccional de citas y liberación automática de horarios.
 - Reprogramación de citas conservando el folio y validando la especialidad.
+- Catálogo administrativo de especialidades y profesionales.
+- Activación y desactivación protegida ante citas confirmadas pendientes.
 - Registro de cancelaciones en el historial del CRM.
 - Persistencia local con SQLite.
 
@@ -32,7 +34,7 @@ Plataforma web para coordinar servicios médicos, gestionar reservaciones y dar 
 ## Instalación
 
 ```powershell
-git clone <URL_DEL_REPOSITORIO>
+git clone https://github.com/afedo-al/MediBot360-Sistemas-Inteligentes.git
 cd MediBot360
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
@@ -58,6 +60,7 @@ La aplicación estará disponible en:
 - Panel administrativo: <http://127.0.0.1:8000/admin>
 - CRM: <http://127.0.0.1:8000/admin/clientes>
 - ERP: <http://127.0.0.1:8000/admin/reservaciones>
+- Catálogo: <http://127.0.0.1:8000/admin/catalogo>
 
 ## Usuario administrador
 
