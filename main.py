@@ -1,7 +1,6 @@
 
 import os
 import secrets
-import sqlite3
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -60,20 +59,6 @@ class LoginRequest(BaseModel):
         min_length=1,
         max_length=200
     )
-
-
-class SpecialtyRequest(BaseModel):
-    name: str = Field(min_length=2, max_length=100)
-    description: str = Field(default="", max_length=500)
-    price: float = Field(gt=0)
-    active: bool = True
-
-
-class ProfessionalRequest(BaseModel):
-    full_name: str = Field(min_length=3, max_length=150)
-    specialty_id: int = Field(gt=0)
-    email: str | None = Field(default=None, max_length=150)
-    active: bool = True
 
 
 @asynccontextmanager
@@ -176,7 +161,6 @@ async def get_professionals(specialty_id: int):
                 ON professionals.specialty_id = specialties.id
             WHERE professionals.specialty_id = ?
             AND professionals.active = 1
-            AND specialties.active = 1
             ORDER BY professionals.full_name
         """, (specialty_id,)).fetchall()
 
@@ -212,15 +196,6 @@ async def get_available_schedules(
             WHERE professional_id = ?
             AND appointment_date = ?
             AND status = 'available'
-            AND EXISTS (
-                SELECT 1
-                FROM professionals p
-                INNER JOIN specialties sp
-                    ON sp.id = p.specialty_id
-                WHERE p.id = schedules.professional_id
-                  AND p.active = 1
-                  AND sp.active = 1
-            )
             ORDER BY start_time
         """, (professional_id, appointment_date)).fetchall()
 
@@ -247,34 +222,15 @@ async def create_appointment(appointment: AppointmentRequest):
 
     with get_db() as db:
         schedule = db.execute("""
-            SELECT
-                s.id,
-                s.professional_id,
-                s.appointment_date,
-                s.status,
-                p.active AS professional_active,
-                sp.active AS specialty_active
-            FROM schedules s
-            INNER JOIN professionals p
-                ON p.id = s.professional_id
-            INNER JOIN specialties sp
-                ON sp.id = p.specialty_id
-            WHERE s.id = ?
+            SELECT id, professional_id, appointment_date, status
+            FROM schedules
+            WHERE id = ?
         """, (appointment.schedule_id,)).fetchone()
 
         if schedule is None:
             raise HTTPException(
                 status_code=404,
                 detail="El horario seleccionado no existe."
-            )
-
-        if (
-            not schedule["professional_active"]
-            or not schedule["specialty_active"]
-        ):
-            raise HTTPException(
-                status_code=409,
-                detail="El servicio o profesional no está disponible."
             )
 
         appointment_day = date.fromisoformat(
@@ -396,40 +352,6 @@ def get_current_admin(request: Request):
         return None
 
     return dict(user)
-
-
-def require_admin(request: Request):
-    admin = get_current_admin(request)
-
-    if not admin:
-        raise HTTPException(
-            status_code=401,
-            detail="Sesión administrativa requerida."
-        )
-
-    return admin
-
-
-def has_pending_confirmed_appointments(
-    db,
-    column: str,
-    record_id: int
-):
-    if column not in {"p.specialty_id", "a.professional_id"}:
-        raise ValueError("Columna no permitida.")
-
-    return db.execute(f"""
-        SELECT 1
-        FROM appointments a
-        INNER JOIN schedules s
-            ON s.id = a.schedule_id
-        INNER JOIN professionals p
-            ON p.id = a.professional_id
-        WHERE a.status = 'confirmed'
-        AND s.appointment_date >= ?
-        AND {column} = ?
-        LIMIT 1
-    """, (date.today().isoformat(), record_id)).fetchone() is not None
 
 
 @app.post("/api/auth/login")
@@ -576,338 +498,6 @@ async def admin_dashboard(request: Request):
             ]
         }
     )
-
-
-# ============================================
-# ERP - CATÁLOGO DE SERVICIOS Y PROFESIONALES
-# ============================================
-
-@app.get("/admin/catalogo")
-async def catalog_page(request: Request):
-    admin = get_current_admin(request)
-
-    if not admin:
-        return RedirectResponse(url="/admin/login", status_code=303)
-
-    return templates.TemplateResponse(
-        request=request,
-        name="admin_catalog.html",
-        context={
-            "title": "Catálogo | MediBot 360",
-            "admin": admin
-        }
-    )
-
-
-@app.get("/api/admin/specialties")
-async def admin_get_specialties(request: Request):
-    require_admin(request)
-
-    with get_db() as db:
-        specialties = db.execute("""
-            SELECT
-                s.id,
-                s.name,
-                s.description,
-                s.price,
-                s.active,
-                COUNT(DISTINCT p.id) AS professionals_count
-            FROM specialties s
-            LEFT JOIN professionals p
-                ON p.specialty_id = s.id
-            GROUP BY s.id
-            ORDER BY s.name
-        """).fetchall()
-
-    return {
-        "success": True,
-        "data": [dict(item) for item in specialties]
-    }
-
-
-@app.post("/api/admin/specialties")
-async def admin_create_specialty(
-    data: SpecialtyRequest,
-    request: Request
-):
-    require_admin(request)
-    name = data.name.strip()
-    description = data.description.strip()
-
-    if len(name) < 2:
-        raise HTTPException(
-            status_code=400,
-            detail="El nombre de la especialidad es obligatorio."
-        )
-
-    try:
-        with get_db() as db:
-            cursor = db.execute("""
-                INSERT INTO specialties (name, description, price, active)
-                VALUES (?, ?, ?, ?)
-            """, (name, description, data.price, int(data.active)))
-            specialty = db.execute("""
-                SELECT id, name, description, price, active
-                FROM specialties
-                WHERE id = ?
-            """, (cursor.lastrowid,)).fetchone()
-    except sqlite3.IntegrityError:
-        raise HTTPException(
-            status_code=409,
-            detail="Ya existe una especialidad con ese nombre."
-        )
-
-    return {"success": True, "data": dict(specialty)}
-
-
-@app.put("/api/admin/specialties/{specialty_id}")
-async def admin_update_specialty(
-    specialty_id: int,
-    data: SpecialtyRequest,
-    request: Request
-):
-    require_admin(request)
-    name = data.name.strip()
-    description = data.description.strip()
-
-    if len(name) < 2:
-        raise HTTPException(
-            status_code=400,
-            detail="El nombre de la especialidad es obligatorio."
-        )
-
-    try:
-        with get_db() as db:
-            current = db.execute("""
-                SELECT id, active
-                FROM specialties
-                WHERE id = ?
-            """, (specialty_id,)).fetchone()
-
-            if current is None:
-                raise HTTPException(
-                    status_code=404,
-                    detail="La especialidad no existe."
-                )
-
-            if current["active"] and not data.active:
-                if has_pending_confirmed_appointments(
-                    db, "p.specialty_id", specialty_id
-                ):
-                    raise HTTPException(
-                        status_code=409,
-                        detail=(
-                            "No se puede desactivar la especialidad porque "
-                            "tiene citas confirmadas pendientes."
-                        )
-                    )
-
-            db.execute("""
-                UPDATE specialties
-                SET name = ?, description = ?, price = ?, active = ?
-                WHERE id = ?
-            """, (
-                name,
-                description,
-                data.price,
-                int(data.active),
-                specialty_id
-            ))
-            specialty = db.execute("""
-                SELECT id, name, description, price, active
-                FROM specialties
-                WHERE id = ?
-            """, (specialty_id,)).fetchone()
-    except sqlite3.IntegrityError:
-        raise HTTPException(
-            status_code=409,
-            detail="Ya existe una especialidad con ese nombre."
-        )
-
-    if data.active:
-        seed_schedules()
-
-    return {"success": True, "data": dict(specialty)}
-
-
-@app.get("/api/admin/professionals")
-async def admin_get_professionals(request: Request):
-    require_admin(request)
-
-    with get_db() as db:
-        professionals = db.execute("""
-            SELECT
-                p.id,
-                p.full_name,
-                p.email,
-                p.active,
-                p.specialty_id,
-                s.name AS specialty_name,
-                s.active AS specialty_active
-            FROM professionals p
-            INNER JOIN specialties s
-                ON s.id = p.specialty_id
-            ORDER BY p.full_name
-        """).fetchall()
-
-    return {
-        "success": True,
-        "data": [dict(item) for item in professionals]
-    }
-
-
-@app.post("/api/admin/professionals")
-async def admin_create_professional(
-    data: ProfessionalRequest,
-    request: Request
-):
-    require_admin(request)
-    full_name = data.full_name.strip()
-    email = data.email.strip().lower() if data.email else None
-
-    if len(full_name) < 3:
-        raise HTTPException(
-            status_code=400,
-            detail="El nombre del profesional es obligatorio."
-        )
-
-    with get_db() as db:
-        specialty = db.execute("""
-            SELECT id
-            FROM specialties
-            WHERE id = ?
-        """, (data.specialty_id,)).fetchone()
-
-        if specialty is None:
-            raise HTTPException(
-                status_code=404,
-                detail="La especialidad seleccionada no existe."
-            )
-
-        cursor = db.execute("""
-            INSERT INTO professionals
-            (full_name, specialty_id, email, active)
-            VALUES (?, ?, ?, ?)
-        """, (
-            full_name,
-            data.specialty_id,
-            email,
-            int(data.active)
-        ))
-        professional = db.execute("""
-            SELECT
-                p.id,
-                p.full_name,
-                p.email,
-                p.active,
-                p.specialty_id,
-                s.name AS specialty_name
-            FROM professionals p
-            INNER JOIN specialties s ON s.id = p.specialty_id
-            WHERE p.id = ?
-        """, (cursor.lastrowid,)).fetchone()
-
-    if data.active:
-        seed_schedules()
-
-    return {"success": True, "data": dict(professional)}
-
-
-@app.put("/api/admin/professionals/{professional_id}")
-async def admin_update_professional(
-    professional_id: int,
-    data: ProfessionalRequest,
-    request: Request
-):
-    require_admin(request)
-    full_name = data.full_name.strip()
-    email = data.email.strip().lower() if data.email else None
-
-    if len(full_name) < 3:
-        raise HTTPException(
-            status_code=400,
-            detail="El nombre del profesional es obligatorio."
-        )
-
-    with get_db() as db:
-        current = db.execute("""
-            SELECT id, active, specialty_id
-            FROM professionals
-            WHERE id = ?
-        """, (professional_id,)).fetchone()
-
-        if current is None:
-            raise HTTPException(
-                status_code=404,
-                detail="El profesional no existe."
-            )
-
-        specialty = db.execute("""
-            SELECT id
-            FROM specialties
-            WHERE id = ?
-        """, (data.specialty_id,)).fetchone()
-
-        if specialty is None:
-            raise HTTPException(
-                status_code=404,
-                detail="La especialidad seleccionada no existe."
-            )
-
-        if (
-            current["specialty_id"] != data.specialty_id
-            and has_pending_confirmed_appointments(
-                db, "a.professional_id", professional_id
-            )
-        ):
-            raise HTTPException(
-                status_code=409,
-                detail=(
-                    "No se puede cambiar la especialidad porque el "
-                    "profesional tiene citas confirmadas pendientes."
-                )
-            )
-
-        if current["active"] and not data.active:
-            if has_pending_confirmed_appointments(
-                db, "a.professional_id", professional_id
-            ):
-                raise HTTPException(
-                    status_code=409,
-                    detail=(
-                        "No se puede desactivar el profesional porque "
-                        "tiene citas confirmadas pendientes."
-                    )
-                )
-
-        db.execute("""
-            UPDATE professionals
-            SET full_name = ?, specialty_id = ?, email = ?, active = ?
-            WHERE id = ?
-        """, (
-            full_name,
-            data.specialty_id,
-            email,
-            int(data.active),
-            professional_id
-        ))
-        professional = db.execute("""
-            SELECT
-                p.id,
-                p.full_name,
-                p.email,
-                p.active,
-                p.specialty_id,
-                s.name AS specialty_name
-            FROM professionals p
-            INNER JOIN specialties s ON s.id = p.specialty_id
-            WHERE p.id = ?
-        """, (professional_id,)).fetchone()
-
-    if data.active:
-        seed_schedules()
-
-    return {"success": True, "data": dict(professional)}
 
 
 # ============================================
@@ -1401,12 +991,6 @@ async def erp_reschedule_options(
             WHERE id = ?
               AND specialty_id = ?
               AND active = 1
-              AND EXISTS (
-                  SELECT 1
-                  FROM specialties
-                  WHERE id = professionals.specialty_id
-                    AND active = 1
-              )
         """, (professional_id, appointment["specialty_id"])).fetchone()
 
         if not professional:
@@ -1478,12 +1062,9 @@ async def erp_reschedule_appointment(
                 s.professional_id,
                 s.appointment_date,
                 s.status,
-                p.specialty_id,
-                p.active AS professional_active,
-                sp.active AS specialty_active
+                p.specialty_id
             FROM schedules s
             INNER JOIN professionals p ON s.professional_id = p.id
-            INNER JOIN specialties sp ON p.specialty_id = sp.id
             WHERE s.id = ?
         """, (data.schedule_id,)).fetchone()
 
@@ -1491,15 +1072,6 @@ async def erp_reschedule_appointment(
             raise HTTPException(
                 status_code=404,
                 detail="El nuevo horario no existe."
-            )
-
-        if (
-            not new_schedule["professional_active"]
-            or not new_schedule["specialty_active"]
-        ):
-            raise HTTPException(
-                status_code=409,
-                detail="El nuevo servicio o profesional no está disponible."
             )
 
         validate_reschedule_date(new_schedule["appointment_date"])

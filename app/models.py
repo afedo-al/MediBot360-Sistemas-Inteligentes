@@ -117,11 +117,6 @@ def seed_specialties():
 
     with get_db() as db:
 
-        if db.execute(
-            "SELECT 1 FROM specialties LIMIT 1"
-        ).fetchone():
-            return
-
         for name, description, price in specialties:
 
             db.execute("""
@@ -142,12 +137,6 @@ def seed_professionals():
     ]
 
     with get_db() as db:
-
-        if db.execute(
-            "SELECT 1 FROM professionals LIMIT 1"
-        ).fetchone():
-            return
-
         for full_name, specialty_name in professionals:
             specialty = db.execute("""
                 SELECT id
