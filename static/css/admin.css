@@ -895,3 +895,86 @@ td strong {
         flex-direction: column;
     }
 }
+
+.erp-confirm-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1100;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+    background: rgba(15, 23, 42, .55);
+}
+
+.erp-confirm-modal[hidden] {
+    display: none;
+}
+
+.erp-confirm-panel {
+    width: min(410px, 100%);
+    padding: 30px;
+    border-radius: 20px;
+    background: #fff;
+    box-shadow: 0 25px 70px rgba(0, 0, 0, .18);
+    text-align: center;
+}
+
+.erp-confirm-icon {
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    margin: 0 auto 15px;
+    border-radius: 50%;
+    background: #fff1f1;
+    color: #b42335;
+    font-size: 21px;
+    font-weight: 800;
+}
+
+.erp-confirm-panel h2 {
+    margin: 0 0 10px;
+    color: var(--admin-text);
+    font-size: 20px;
+}
+
+.erp-confirm-panel p {
+    margin: 0;
+    color: #697486;
+    font-size: 12px;
+    line-height: 1.7;
+}
+
+.erp-confirm-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 25px;
+}
+
+.erp-confirm-actions > button {
+    flex: 1;
+    min-height: 44px;
+}
+
+.erp-confirm-accept {
+    border: none;
+    border-radius: 10px;
+    background: #b42335;
+    color: #fff;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.erp-confirm-accept:hover {
+    background: #941d2c;
+}
+
+@media (max-width: 600px) {
+    .erp-confirm-panel {
+        padding: 24px;
+    }
+
+    .erp-confirm-actions {
+        flex-direction: column-reverse;
+    }
+}

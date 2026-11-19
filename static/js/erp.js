@@ -17,6 +17,41 @@ document.addEventListener("DOMContentLoaded", () => {
         return cell;
     }
 
+    const confirmationModal = document.getElementById("erp-confirm-modal");
+    const confirmationMessage = document.getElementById("erp-confirm-message");
+    const confirmationCancel = document.getElementById("erp-confirm-cancel");
+    const confirmationAccept = document.getElementById("erp-confirm-accept");
+    let confirmationResolver = null;
+
+    function settleConfirmation(value) {
+        confirmationModal.hidden = true;
+        const resolve = confirmationResolver;
+        confirmationResolver = null;
+        if (resolve) resolve(value);
+    }
+
+    function requestConfirmation(message, acceptText) {
+        if (confirmationResolver) settleConfirmation(false);
+        confirmationMessage.textContent = message;
+        confirmationAccept.textContent = acceptText;
+        confirmationModal.hidden = false;
+        confirmationAccept.focus();
+        return new Promise(resolve => {
+            confirmationResolver = resolve;
+        });
+    }
+
+    confirmationCancel.addEventListener("click", () => settleConfirmation(false));
+    confirmationAccept.addEventListener("click", () => settleConfirmation(true));
+    confirmationModal.addEventListener("click", event => {
+        if (event.target === confirmationModal) settleConfirmation(false);
+    });
+    document.addEventListener("keydown", event => {
+        if (event.key === "Escape" && !confirmationModal.hidden) {
+            settleConfirmation(false);
+        }
+    });
+
     async function loadAppointments() {
         const currentRequest = ++requestNumber;
         const params = new URLSearchParams();
@@ -84,7 +119,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     async function cancelAppointment(appointment, button) {
-        if (!window.confirm(`¿Cancelar la reservación ${appointment.folio}?`)) return;
+        const confirmed = await requestConfirmation(
+            `¿Cancelar la reservación ${appointment.folio}? Esta acción liberará su horario.`,
+            "Cancelar reservación"
+        );
+        if (!confirmed) return;
         button.disabled = true;
         button.textContent = "Cancelando...";
         try {
@@ -223,7 +262,11 @@ document.addEventListener("DOMContentLoaded", () => {
     async function submitReschedule(event) {
         event.preventDefault();
         if (!activeReschedule || !rescheduleSchedule.value || rescheduleBusy) return;
-        if (!window.confirm(`¿Confirmar reprogramación de ${activeReschedule.folio}?`)) return;
+        const confirmed = await requestConfirmation(
+            `¿Confirmar la reprogramación de ${activeReschedule.folio}?`,
+            "Confirmar cambio"
+        );
+        if (!confirmed) return;
         rescheduleBusy = true;
         rescheduleSubmit.disabled = true;
         rescheduleSubmit.textContent = "Guardando...";
@@ -266,6 +309,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (event.target === modal) closeReschedule();
     });
     document.addEventListener("keydown", event => {
+        if (!confirmationModal.hidden) return;
         if (event.key === "Escape" && !modal.hidden) closeReschedule();
     });
 

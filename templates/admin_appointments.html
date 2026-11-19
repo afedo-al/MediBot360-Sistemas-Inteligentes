@@ -44,6 +44,17 @@
             </div>
         </section>
         <footer class="admin-footer"><span>MediBot 360 · ERP</span><span>Administración de reservaciones</span></footer>
+        <div id="erp-confirm-modal" class="erp-confirm-modal" hidden>
+            <section class="erp-confirm-panel" role="dialog" aria-modal="true" aria-labelledby="erp-confirm-title">
+                <div class="erp-confirm-icon">!</div>
+                <h2 id="erp-confirm-title">Confirmar acción</h2>
+                <p id="erp-confirm-message"></p>
+                <div class="erp-confirm-actions">
+                    <button type="button" id="erp-confirm-cancel" class="erp-secondary-button">Volver</button>
+                    <button type="button" id="erp-confirm-accept" class="erp-confirm-accept">Confirmar</button>
+                </div>
+            </section>
+        </div>
         <div id="erp-reschedule-modal" class="erp-reschedule-modal" hidden>
             <section class="erp-modal-panel" role="dialog" aria-modal="true" aria-labelledby="erp-modal-title">
                 <div class="erp-modal-header">
