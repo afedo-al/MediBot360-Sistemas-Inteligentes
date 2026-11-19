@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>{{ title }}</title>
+
+    <link rel="stylesheet" href="/static/css/admin.css">
+
+    <script src="/static/js/admin.js" defer></script>
+
+</head>
+
+<body class="dashboard-page">
+
+    <aside class="admin-sidebar">
+
+        <a href="/admin" class="admin-brand">
+
+            <span class="brand-symbol">✚</span>
+
+            <span>
+                MediBot <strong>360</strong>
+            </span>
+
+        </a>
+
+        <span class="sidebar-label">
+            ADMINISTRACIÓN
+        </span>
+
+        <nav class="admin-navigation">
+
+            <a href="/admin" class="nav-item active">
+                <span>▦</span>
+                Resumen general
+            </a>
+
+            <a href="/admin/clientes" class="nav-item">
+                <span>♙</span>
+                Clientes
+            </a>
+
+            <a href="/admin/reservaciones" class="nav-item">
+                <span>▣</span>
+                Reservaciones
+            </a>
+
+            <div class="nav-item disabled">
+                <span>✚</span>
+                Especialidades
+                <small>Próximamente</small>
+            </div>
+
+            <div class="nav-item disabled">
+                <span>◷</span>
+                Profesionales
+                <small>Próximamente</small>
+            </div>
+
+            <div class="nav-item disabled">
+                <span>▤</span>
+                Reportes
+                <small>Próximamente</small>
+            </div>
+
+        </nav>
+
+        <div class="sidebar-bottom">
+
+            <div class="administrator-info">
+
+                <div class="administrator-avatar">
+                    {{ admin.username[0]|upper }}
+                </div>
+
+                <div>
+                    <strong>{{ admin.username }}</strong>
+                    <span>Administrador</span>
+                </div>
+
+            </div>
+
+            <button id="logout-button" class="logout-button">
+                Cerrar sesión
+            </button>
+
+        </div>
+
+    </aside>
+
+    <main class="admin-content">
+
+        <header class="admin-topbar">
+
+            <div>
+                <span class="breadcrumb">
+                    MEDIBOT 360 / ADMINISTRACIÓN
+                </span>
+
+                <h1>Resumen general</h1>
+            </div>
+
+            <a href="/" class="visit-site">
+                Ver página pública ↗
+            </a>
+
+        </header>
+
+        <section class="welcome-section">
+
+            <div>
+                <span class="welcome-label">
+                    PANEL DE CONTROL
+                </span>
+
+                <h2>
+                    Bienvenido, {{ admin.username }}.
+                </h2>
+
+                <p>
+                    Consulta la actividad general de MediBot 360
+                    desde un solo lugar.
+                </p>
+            </div>
+
+            <div class="welcome-symbol">
+                ✚
+            </div>
+
+        </section>
+
+        <section class="metrics-grid">
+
+            <article class="metric-card">
+
+                <span class="metric-label">
+                    CLIENTES REGISTRADOS
+                </span>
+
+                <strong class="metric-value">
+                    {{ stats.customers }}
+                </strong>
+
+                <span class="metric-description">
+                    Registros almacenados en CRM
+                </span>
+
+                <span class="metric-symbol blue">♙</span>
+
+            </article>
+
+            <article class="metric-card">
+
+                <span class="metric-label">
+                    RESERVACIONES
+                </span>
+
+                <strong class="metric-value">
+                    {{ stats.appointments }}
+                </strong>
+
+                <span class="metric-description">
+                    Total de citas registradas
+                </span>
+
+                <span class="metric-symbol purple">▣</span>
+
+            </article>
+
+            <article class="metric-card">
+
+                <span class="metric-label">
+                    CITAS CONFIRMADAS
+                </span>
+
+                <strong class="metric-value">
+                    {{ stats.confirmed }}
+                </strong>
+
+                <span class="metric-description">
+                    Reservaciones confirmadas
+                </span>
+
+                <span class="metric-symbol green">✓</span>
+
+            </article>
+
+            <article class="metric-card">
+
+                <span class="metric-label">
+                    HORARIOS OCUPADOS
+                </span>
+
+                <strong class="metric-value">
+                    {{ stats.booked }}
+                </strong>
+
+                <span class="metric-description">
+                    Horarios bloqueados
+                </span>
+
+                <span class="metric-symbol orange">◷</span>
+
+            </article>
+
+        </section>
+
+        <section class="admin-table-section">
+
+            <div class="section-header">
+
+                <div>
+                    <h2>Actividad reciente</h2>
+
+                    <p>
+                        Últimas reservaciones registradas en el sistema.
+                    </p>
+                </div>
+
+                <span class="table-indicator">
+                    DATOS ACTUALIZADOS AL CARGAR
+                </span>
+
+            </div>
+
+            <div class="table-container">
+
+                <table>
+
+                    <thead>
+
+                        <tr>
+
+                            <th>Folio</th>
+
+                            <th>Cliente</th>
+
+                            <th>Profesional</th>
+
+                            <th>Especialidad</th>
+
+                            <th>Fecha</th>
+
+                            <th>Horario</th>
+
+                            <th>Estado</th>
+
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                        {% for appointment in recent_appointments %}
+
+                        <tr>
+
+                            <td>
+                                <strong>{{ appointment.folio }}</strong>
+                            </td>
+
+                            <td>
+                                {{ appointment.customer_name }}
+                            </td>
+
+                            <td>
+                                {{ appointment.professional_name }}
+                            </td>
+
+                            <td>
+                                {{ appointment.specialty_name }}
+                            </td>
+
+                            <td>
+                                {{ appointment.appointment_date }}
+                            </td>
+
+                            <td>
+                                {{ appointment.start_time }}
+                            </td>
+
+                            <td>
+
+                                <span class="status-badge
+                                    {% if appointment.status == 'confirmed' %}
+                                        confirmed
+                                    {% elif appointment.status == 'cancelled' %}
+                                        cancelled
+                                    {% else %}
+                                        pending
+                                    {% endif %}
+                                ">
+
+                                    {{ appointment.status }}
+
+                                </span>
+
+                            </td>
+
+                        </tr>
+
+                        {% else %}
+
+                        <tr>
+
+                            <td colspan="7" class="empty-table">
+                                Todavía no existen reservaciones registradas.
+                            </td>
+
+                        </tr>
+
+                        {% endfor %}
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+        <footer class="admin-footer">
+
+            <span>
+                MediBot 360 · Panel administrativo
+            </span>
+
+            <span>
+                Entorno de demostración
+            </span>
+
+        </footer>
+
+    </main>
+
+</body>
+
+</html>

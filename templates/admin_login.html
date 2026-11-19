@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>MediBot 360 | Acceso administrativo</title>
+
+    <link rel="stylesheet" href="/static/css/admin.css">
+
+    <script src="/static/js/admin.js" defer></script>
+
+</head>
+
+<body class="login-page">
+
+    <main class="login-container">
+
+        <a href="/" class="admin-brand">
+
+            <span class="brand-symbol">✚</span>
+
+            <span>
+                MediBot <strong>360</strong>
+            </span>
+
+        </a>
+
+        <section class="login-card">
+
+            <span class="login-eyebrow">
+                ÁREA ADMINISTRATIVA
+            </span>
+
+            <h1>Bienvenido de nuevo.</h1>
+
+            <p>
+                Inicia sesión para acceder al sistema de gestión
+                de MediBot 360.
+            </p>
+
+            <form id="login-form">
+
+                <div class="admin-field">
+
+                    <label for="username">
+                        Usuario
+                    </label>
+
+                    <input
+                        type="text"
+                        id="username"
+                        name="username"
+                        placeholder="Nombre de usuario"
+                        autocomplete="username"
+                        required
+                        minlength="3"
+                        maxlength="100"
+                    >
+
+                </div>
+
+                <div class="admin-field">
+
+                    <label for="password">
+                        Contraseña
+                    </label>
+
+                    <input
+                        type="password"
+                        id="password"
+                        name="password"
+                        placeholder="Introduce tu contraseña"
+                        autocomplete="current-password"
+                        required
+                        maxlength="200"
+                    >
+
+                </div>
+
+                <div
+                    id="login-feedback"
+                    class="login-feedback"
+                    role="alert"
+                    aria-live="polite"
+                    hidden
+                ></div>
+
+                <button
+                    type="submit"
+                    id="login-button"
+                    class="admin-primary-button"
+                >
+                    Iniciar sesión →
+                </button>
+
+            </form>
+
+            <div class="login-security">
+
+                <span>◈</span>
+
+                Acceso restringido al personal autorizado.
+
+            </div>
+
+        </section>
+
+        <a href="/" class="return-link">
+            ← Volver a la página principal
+        </a>
+
+        <footer class="login-footer">
+            © 2026 MediBot 360
+        </footer>
+
+    </main>
+
+</body>
+
+</html>

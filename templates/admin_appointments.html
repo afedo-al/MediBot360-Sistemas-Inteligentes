@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="/static/css/admin.css">
+    <script src="/static/js/admin.js" defer></script>
+    <script src="/static/js/erp.js" defer></script>
+</head>
+<body class="dashboard-page">
+    <aside class="admin-sidebar">
+        <a href="/admin" class="admin-brand"><span class="brand-symbol">✚</span><span>MediBot <strong>360</strong></span></a>
+        <span class="sidebar-label">ADMINISTRACIÓN</span>
+        <nav class="admin-navigation">
+            <a href="/admin" class="nav-item"><span>▦</span>Resumen general</a>
+            <a href="/admin/clientes" class="nav-item"><span>♙</span>Clientes</a>
+            <a href="/admin/reservaciones" class="nav-item active"><span>▣</span>Reservaciones</a>
+            <div class="nav-item disabled"><span>✚</span>Especialidades<small>Próximamente</small></div>
+            <div class="nav-item disabled"><span>◷</span>Profesionales<small>Próximamente</small></div>
+            <div class="nav-item disabled"><span>▤</span>Reportes<small>Próximamente</small></div>
+        </nav>
+        <div class="sidebar-bottom">
+            <div class="administrator-info"><div class="administrator-avatar">{{ admin.username[0]|upper }}</div><div><strong>{{ admin.username }}</strong><span>Administrador</span></div></div>
+            <button id="logout-button" class="logout-button">Cerrar sesión</button>
+        </div>
+    </aside>
+    <main class="admin-content">
+        <header class="admin-topbar"><div><span class="breadcrumb">MEDIBOT 360 / ERP</span><h1>Reservaciones</h1></div><a href="/admin" class="visit-site">Volver al panel</a></header>
+        <section class="welcome-section"><div><span class="welcome-label">ADMINISTRACIÓN DE CITAS</span><h2>Control de reservaciones</h2><p>Consulta, organiza y administra las citas registradas en MediBot 360.</p></div><div class="welcome-symbol">▣</div></section>
+        <section class="admin-table-section" style="margin-top:25px">
+            <div class="section-header"><div><h2>Directorio de citas</h2><p>Reservaciones registradas en la base de datos.</p></div></div>
+            <div class="erp-toolbar">
+                <input id="erp-search" type="search" placeholder="Buscar cliente, folio, especialidad..." aria-label="Buscar reservaciones">
+                <select id="erp-status" aria-label="Estado"><option value="">Todos los estados</option><option value="confirmed">Confirmadas</option><option value="cancelled">Canceladas</option></select>
+                <input id="erp-date" type="date" aria-label="Filtrar por fecha">
+                <button type="button" id="erp-clear">Limpiar</button>
+            </div>
+            <p id="erp-feedback" role="status" aria-live="polite">Cargando reservaciones...</p>
+            <div class="table-container">
+                <table><thead><tr><th>FOLIO</th><th>CLIENTE</th><th>ESPECIALIDAD</th><th>PROFESIONAL</th><th>FECHA</th><th>ESTADO</th><th>ACCIÓN</th></tr></thead>
+                    <tbody id="erp-table"><tr><td colspan="7" class="empty-table">Cargando datos...</td></tr></tbody>
+                </table>
+            </div>
+        </section>
+        <footer class="admin-footer"><span>MediBot 360 · ERP</span><span>Administración de reservaciones</span></footer>
+    </main>
+</body>
+</html>
