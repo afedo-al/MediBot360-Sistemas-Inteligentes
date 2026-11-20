@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="/static/css/admin.css?v=7e4">
+    <script src="/static/js/admin.js" defer></script>
+    <script src="/static/js/erp_operations.js" defer></script>
+</head>
+<body class="dashboard-page">
+    <aside class="admin-sidebar">
+        <a href="/admin" class="admin-brand"><span class="brand-symbol">✚</span><span>MediBot <strong>360</strong></span></a>
+        <span class="sidebar-label">ADMINISTRACIÓN</span>
+        <nav class="admin-navigation">
+            <a href="/admin" class="nav-item"><span>▦</span>Resumen general</a>
+            <a href="/admin/clientes" class="nav-item"><span>♙</span>Clientes</a>
+            <a href="/admin/reservaciones" class="nav-item"><span>▣</span>Reservaciones</a>
+            <a href="/admin/catalogo" class="nav-item"><span>✚</span>Especialidades</a>
+            <a href="/admin/catalogo" class="nav-item"><span>◷</span>Profesionales</a>
+            <a href="/admin/horarios" class="nav-item"><span>▦</span>Horarios</a>
+            <a href="/admin/operaciones" class="nav-item active"><span>▤</span>Pagos y recursos</a>
+        </nav>
+        <div class="sidebar-bottom">
+            <div class="administrator-info"><div class="administrator-avatar">{{ admin.username[0]|upper }}</div><div><strong>{{ admin.username }}</strong><span>Administrador</span></div></div>
+            <button id="logout-button" class="logout-button">Cerrar sesión</button>
+        </div>
+    </aside>
+    <main class="admin-content">
+        <header class="admin-topbar">
+            <div><span class="breadcrumb">MEDIBOT 360 / ERP / OPERACIONES</span><h1>Pagos y recursos</h1></div>
+            <a href="/admin" class="visit-site">Panel principal</a>
+        </header>
+        <section class="welcome-section">
+            <div><span class="welcome-label">CONTROL ADMINISTRATIVO</span><h2>Operaciones de MediBot 360</h2><p>Controla cobros ficticios y recursos de la empresa desde un solo lugar.</p></div>
+            <div class="welcome-symbol">▤</div>
+        </section>
+
+        <section id="pagos" class="ops-section">
+            <div class="ops-heading"><div><h2>Pagos simulados</h2><p>Los importes son demostrativos. No se realiza ningún cargo real.</p></div></div>
+            <div class="ops-stats">
+                <article class="ops-stat"><span>RESERVACIONES</span><strong id="fin-appointments">—</strong></article>
+                <article class="ops-stat"><span>COBRADO · SIMULADO</span><strong id="fin-paid">—</strong></article>
+                <article class="ops-stat"><span>POR COBRAR · SIMULADO</span><strong id="fin-pending">—</strong></article>
+                <article class="ops-stat"><span>DEVOLUCIONES · SIMULADAS</span><strong id="fin-refunded">—</strong></article>
+            </div>
+            <div class="ops-card">
+                <div class="ops-card-heading"><div><h3>Control de cobros</h3><p>Consulta el estado de pago de cada cita.</p></div><input type="search" id="fin-search" placeholder="Buscar cliente o folio..." aria-label="Buscar pagos"></div>
+                <p id="fin-message" class="ops-message" role="status" aria-live="polite">Cargando reservaciones...</p>
+                <div class="table-container"><table class="ops-table"><thead><tr><th>FOLIO</th><th>CLIENTE</th><th>ESPECIALIDAD</th><th>IMPORTE</th><th>CITA</th><th>PAGO</th><th>ACCIÓN</th></tr></thead><tbody id="fin-table"></tbody></table></div>
+            </div>
+        </section>
+
+        <section id="recursos" class="ops-section">
+            <div class="ops-heading"><div><h2>Control de recursos</h2><p>Inventario administrativo de materiales y equipamiento ficticios.</p></div></div>
+            <div class="ops-resource-layout">
+                <section class="ops-card">
+                    <h3 id="resource-form-title">Nuevo recurso</h3>
+                    <form id="resource-form">
+                        <input type="hidden" id="resource-id">
+                        <div class="ops-field"><label for="resource-name">Nombre del recurso</label><input id="resource-name" required minlength="2" maxlength="150" placeholder="Ej. Guantes de exploración"></div>
+                        <div class="ops-field"><label for="resource-description">Descripción</label><textarea id="resource-description" rows="3" maxlength="500" placeholder="Descripción general"></textarea></div>
+                        <div class="ops-field"><label for="resource-quantity">Existencia inicial</label><input id="resource-quantity" type="number" min="0" max="1000000" step="1" value="0" required><small>Después del registro, las cantidades se modificarán mediante movimientos.</small></div>
+                        <div class="ops-field"><label for="resource-status">Disponibilidad</label><select id="resource-status"><option value="available">Disponible</option><option value="unavailable">No disponible</option></select></div>
+                        <div class="ops-actions"><button id="resource-save" type="submit" class="ops-primary">Guardar recurso</button><button id="resource-clear" type="button" class="ops-secondary">Limpiar</button></div>
+                        <p id="resource-message" class="ops-message" role="status" aria-live="polite"></p>
+                    </form>
+                </section>
+                <section class="ops-card">
+                    <h3>Recursos registrados</h3>
+                    <p id="resource-total" class="ops-muted">Consultando inventario...</p>
+                    <div class="table-container"><table class="ops-table"><thead><tr><th>RECURSO</th><th>CANTIDAD</th><th>ESTADO</th><th>ACCIONES</th></tr></thead><tbody id="resource-table"></tbody></table></div>
+                </section>
+            </div>
+            <section id="resource-adjust-panel" class="ops-card ops-adjust" hidden>
+                <h3>Ajustar existencias</h3>
+                <p id="resource-adjust-name"></p>
+                <form id="resource-adjust-form">
+                    <input type="hidden" id="resource-adjust-id">
+                    <div class="ops-field"><label for="resource-delta">Cambio de cantidad</label><input id="resource-delta" type="number" step="1" min="-100000" max="100000" required placeholder="Ej. 10 o -3"><small>Usa números positivos para entradas y negativos para salidas.</small></div>
+                    <div class="ops-field"><label for="resource-reason">Motivo del movimiento</label><input id="resource-reason" required minlength="3" maxlength="200" placeholder="Ej. Recepción de material"></div>
+                    <div class="ops-actions"><button type="submit" class="ops-primary" id="resource-adjust-save">Registrar movimiento</button><button type="button" class="ops-secondary" id="resource-adjust-cancel">Cancelar</button></div>
+                    <p id="resource-adjust-message" class="ops-message" role="status" aria-live="polite"></p>
+                </form>
+            </section>
+            <section class="ops-card ops-history">
+                <h3>Últimos movimientos de recursos</h3>
+                <div class="table-container"><table class="ops-table"><thead><tr><th>FECHA</th><th>RECURSO</th><th>MOVIMIENTO</th><th>MOTIVO</th><th>USUARIO</th></tr></thead><tbody id="resource-movements"></tbody></table></div>
+            </section>
+        </section>
+        <footer class="admin-footer"><span>MediBot 360 · ERP</span><span>Entorno de demostración</span></footer>
+    </main>
+
+    <div id="ops-payment-modal" class="ops-payment-modal" hidden>
+        <section class="ops-payment-dialog mb-admin-confirm" role="dialog" aria-modal="true" aria-labelledby="ops-payment-title">
+            <div id="ops-payment-icon" class="ops-payment-icon">✓</div>
+            <span class="ops-payment-kicker">OPERACIÓN SIMULADA</span>
+            <h2 id="ops-payment-title">Confirmar operación</h2>
+            <p id="ops-payment-message"></p>
+            <div class="ops-payment-actions">
+                <button type="button" id="ops-payment-cancel" class="ops-secondary">Volver</button>
+                <button type="button" id="ops-payment-confirm" class="ops-primary">Confirmar</button>
+            </div>
+        </section>
+    </div>
+</body>
+</html>

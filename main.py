@@ -1,19 +1,24 @@
 
+import hashlib
+import hmac
 import os
 import re
 import secrets
 import sqlite3
+import time
+import unicodedata
 from datetime import date, timedelta
 from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 from typing import Literal
 from starlette.middleware.sessions import SessionMiddleware
+from urllib.parse import urlsplit
 
 from contextlib import asynccontextmanager
 
@@ -51,6 +56,7 @@ class AppointmentRequest(BaseModel):
         default=None,
         max_length=20
     )
+    source: Literal["web", "chatbot"] = "web"
 
 
 class LoginRequest(BaseModel):
@@ -99,7 +105,9 @@ app.add_middleware(
     session_cookie="medibot_session",
     max_age=60 * 60 * 8,
     same_site="lax",
-    https_only=False
+    https_only=(
+        os.getenv("MEDIBOT_HTTPS", "0") == "1"
+    )
 )
 
 # Directorio principal del proyecto
@@ -241,7 +249,13 @@ async def get_available_schedules(
 
 
 @app.post("/api/appointments")
-async def create_appointment(appointment: AppointmentRequest):
+async def create_appointment(
+    appointment: AppointmentRequest,
+    request: Request
+):
+    check_rate_limit(
+        request, "new_booking", maximum=15
+    )
     full_name = appointment.full_name.strip()
     email = appointment.email.strip().lower() if appointment.email else None
     phone = appointment.phone.strip() if appointment.phone else None
@@ -263,7 +277,8 @@ async def create_appointment(appointment: AppointmentRequest):
                 s.appointment_date,
                 s.status,
                 p.active AS professional_active,
-                sp.active AS specialty_active
+                sp.active AS specialty_active,
+                sp.price AS agreed_price
             FROM schedules s
             INNER JOIN professionals p
                 ON p.id = s.professional_id
@@ -365,13 +380,21 @@ async def create_appointment(appointment: AppointmentRequest):
 
         db.execute("""
             INSERT INTO appointments
-            (folio, customer_id, professional_id, schedule_id, status)
-            VALUES (?, ?, ?, ?, 'confirmed')
+            (
+                folio,
+                customer_id,
+                professional_id,
+                schedule_id,
+                status,
+                agreed_price
+            )
+            VALUES (?, ?, ?, ?, 'confirmed', ?)
         """, (
             folio,
             customer["id"],
             schedule["professional_id"],
-            appointment.schedule_id
+            appointment.schedule_id,
+            round(float(schedule["agreed_price"]), 2)
         ))
 
         appointment_row = db.execute("""
@@ -383,11 +406,12 @@ async def create_appointment(appointment: AppointmentRequest):
         db.execute("""
             INSERT INTO interactions
             (customer_id, message, response, channel)
-            VALUES (?, ?, ?, 'web')
+            VALUES (?, ?, ?, ?)
         """, (
             customer["id"],
             "Solicitud de reservación",
             f"Reservación creada con folio {folio}",
+            appointment.source
         ))
 
     return {
@@ -462,8 +486,69 @@ def has_pending_confirmed_appointments(
     """, (date.today().isoformat(), record_id)).fetchone() is not None
 
 
+# ==================================================
+# ETAPA 10B - LIMITADOR DE INTENTOS
+# ==================================================
+
+def check_rate_limit(
+    request: Request,
+    action: str,
+    maximum: int,
+    window_seconds: int = 900
+):
+    client_ip = (
+        request.client.host
+        if request.client
+        else "unknown"
+    )
+
+    fingerprint = hmac.new(
+        SESSION_SECRET.encode("utf-8"),
+        f"{action}:{client_ip}".encode("utf-8"),
+        hashlib.sha256
+    ).hexdigest()
+
+    now = int(time.time())
+    cutoff = now - window_seconds
+
+    with get_db() as db:
+        db.execute("BEGIN IMMEDIATE")
+        db.execute("""
+            DELETE FROM security_attempts
+            WHERE created_at < ?
+        """, (now - 86400,))
+
+        total = db.execute("""
+            SELECT COUNT(*) AS attempts
+            FROM security_attempts
+            WHERE fingerprint = ?
+              AND created_at > ?
+        """, (fingerprint, cutoff)).fetchone()["attempts"]
+
+        if total >= maximum:
+            raise HTTPException(
+                status_code=429,
+                detail=(
+                    "Demasiados intentos. "
+                    "Intenta nuevamente más tarde."
+                ),
+                headers={
+                    "Retry-After": str(window_seconds)
+                }
+            )
+
+        db.execute("""
+            INSERT INTO security_attempts
+                (fingerprint, created_at)
+            VALUES (?, ?)
+        """, (fingerprint, now))
+
+
 @app.post("/api/auth/login")
 async def login(data: LoginRequest, request: Request):
+    check_rate_limit(
+        request, "admin_login", maximum=10
+    )
     username = data.username.strip().lower()
 
     with get_db() as db:
@@ -1316,6 +1401,23 @@ async def erp_cancel_appointment(
                 detail="La reservación ya fue cancelada."
             )
 
+        payment_pending_refund = db.execute("""
+            SELECT 1
+            FROM payments
+            WHERE appointment_id = ?
+              AND status = 'paid'
+            LIMIT 1
+        """, (appointment_id,)).fetchone()
+
+        if payment_pending_refund:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "La cita tiene un pago registrado. "
+                    "Registra primero su devolución simulada."
+                )
+            )
+
         updated_appointment = db.execute("""
             UPDATE appointments
             SET status = 'cancelled'
@@ -1617,6 +1719,483 @@ async def erp_reschedule_appointment(
     return {
         "success": True,
         "message": "Reservación reprogramada correctamente."
+    }
+
+
+# =====================================================
+# ETAPA 7E - PAGOS SIMULADOS Y RECURSOS
+# =====================================================
+
+class ResourceCreate(BaseModel):
+    name: str = Field(min_length=2, max_length=150)
+    description: str = Field(default="", max_length=500)
+    quantity: int = Field(ge=0, le=1000000)
+    status: Literal["available", "unavailable"] = "available"
+
+
+class ResourceUpdate(BaseModel):
+    name: str = Field(min_length=2, max_length=150)
+    description: str = Field(default="", max_length=500)
+    status: Literal["available", "unavailable"]
+
+
+class StockAdjustment(BaseModel):
+    quantity_change: int = Field(ge=-100000, le=100000)
+    reason: str = Field(min_length=3, max_length=200)
+
+
+def require_operations_admin(request: Request):
+    admin = get_current_admin(request)
+    if not admin:
+        raise HTTPException(
+            status_code=401,
+            detail="Sesión administrativa requerida."
+        )
+    return admin
+
+
+@app.get("/admin/operaciones")
+async def erp_operations_page(request: Request):
+    admin = get_current_admin(request)
+    if not admin:
+        return RedirectResponse(
+            url="/admin/login",
+            status_code=303
+        )
+
+    return templates.TemplateResponse(
+        request=request,
+        name="admin_operations.html",
+        context={
+            "title": "Pagos y recursos | MediBot 360",
+            "admin": admin
+        }
+    )
+
+
+@app.get("/api/admin/finance")
+async def erp_finance_list(request: Request):
+    require_operations_admin(request)
+
+    with get_db() as db:
+        rows = db.execute("""
+            SELECT
+                a.id AS appointment_id,
+                a.folio,
+                a.status AS appointment_status,
+                a.agreed_price AS agreed_price,
+                c.full_name AS customer_name,
+                sp.name AS specialty_name,
+                s.appointment_date,
+                p.id AS payment_id,
+                p.amount AS payment_amount,
+                COALESCE(p.status, 'unpaid') AS payment_status,
+                p.payment_date,
+                p.refunded_at
+            FROM appointments a
+            JOIN customers c ON c.id = a.customer_id
+            JOIN professionals pr ON pr.id = a.professional_id
+            JOIN specialties sp ON sp.id = pr.specialty_id
+            JOIN schedules s ON s.id = a.schedule_id
+            LEFT JOIN payments p ON p.id = (
+                SELECT p2.id
+                FROM payments p2
+                WHERE p2.appointment_id = a.id
+                ORDER BY p2.id DESC
+                LIMIT 1
+            )
+            ORDER BY a.id DESC
+        """).fetchall()
+
+    records = [dict(row) for row in rows]
+    paid_total = sum(
+        float(r["payment_amount"] or 0)
+        for r in records
+        if r["payment_status"] == "paid"
+    )
+    pending_total = sum(
+        float(r["agreed_price"] or 0)
+        for r in records
+        if r["appointment_status"] == "confirmed"
+        and r["payment_status"] in ("unpaid", "pending")
+    )
+    refunded_total = sum(
+        float(r["payment_amount"] or 0)
+        for r in records
+        if r["payment_status"] == "refunded"
+    )
+
+    return {
+        "success": True,
+        "data": records,
+        "stats": {
+            "appointments": len(records),
+            "paid_total": round(paid_total, 2),
+            "pending_total": round(pending_total, 2),
+            "refunded_total": round(refunded_total, 2)
+        }
+    }
+
+
+@app.post("/api/admin/payments/{appointment_id}/collect")
+async def erp_collect_payment(
+    appointment_id: int,
+    request: Request
+):
+    admin = require_operations_admin(request)
+
+    with get_db() as db:
+        db.execute("BEGIN IMMEDIATE")
+        appointment = db.execute("""
+            SELECT id, folio, customer_id, status, agreed_price
+            FROM appointments
+            WHERE id = ?
+        """, (appointment_id,)).fetchone()
+
+        if not appointment:
+            raise HTTPException(404, "Reservación no encontrada.")
+        if appointment["status"] != "confirmed":
+            raise HTTPException(
+                409,
+                "Solo puedes cobrar citas confirmadas."
+            )
+
+        amount = round(
+            float(appointment["agreed_price"] or 0),
+            2
+        )
+        if amount <= 0:
+            raise HTTPException(
+                409,
+                "La reservación no tiene un importe válido."
+            )
+
+        existing = db.execute("""
+            SELECT id, status
+            FROM payments
+            WHERE appointment_id = ?
+        """, (appointment_id,)).fetchall()
+
+        if len(existing) > 1:
+            raise HTTPException(
+                409,
+                "Existen pagos duplicados. Revisa este registro."
+            )
+        if existing:
+            if existing[0]["status"] != "pending":
+                raise HTTPException(
+                    409,
+                    "Esta cita ya tiene un pago registrado."
+                )
+
+            db.execute("""
+                UPDATE payments
+                SET amount = ?,
+                    status = 'paid',
+                    payment_date = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """, (amount, existing[0]["id"]))
+        else:
+            db.execute("""
+                INSERT INTO payments
+                    (appointment_id, amount, status, payment_date)
+                VALUES (?, ?, 'paid', CURRENT_TIMESTAMP)
+            """, (appointment_id, amount))
+
+        db.execute("""
+            INSERT INTO interactions
+                (customer_id, message, response, channel)
+            VALUES (?, ?, ?, 'erp')
+        """, (
+            appointment["customer_id"],
+            f"Pago simulado del folio {appointment['folio']}",
+            f"Importe ${amount:.2f} MXN. "
+            f"Registrado por {admin['username']}"
+        ))
+
+    return {
+        "success": True,
+        "message": "Pago simulado registrado correctamente."
+    }
+
+
+@app.post("/api/admin/payments/{appointment_id}/refund")
+async def erp_refund_payment(
+    appointment_id: int,
+    request: Request
+):
+    admin = require_operations_admin(request)
+
+    with get_db() as db:
+        db.execute("BEGIN IMMEDIATE")
+        payment = db.execute("""
+            SELECT
+                p.id,
+                p.amount,
+                p.status,
+                a.customer_id,
+                a.folio
+            FROM payments p
+            JOIN appointments a ON a.id = p.appointment_id
+            WHERE p.appointment_id = ?
+            ORDER BY p.id DESC
+            LIMIT 1
+        """, (appointment_id,)).fetchone()
+
+        if not payment:
+            raise HTTPException(
+                404,
+                "Esta cita no tiene un pago registrado."
+            )
+        if payment["status"] != "paid":
+            raise HTTPException(
+                409,
+                "El pago no admite una devolución."
+            )
+
+        updated = db.execute("""
+            UPDATE payments
+            SET status = 'refunded',
+                refunded_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+              AND status = 'paid'
+        """, (payment["id"],))
+
+        if updated.rowcount != 1:
+            raise HTTPException(
+                409,
+                "No se pudo registrar la devolución."
+            )
+
+        db.execute("""
+            INSERT INTO interactions
+                (customer_id, message, response, channel)
+            VALUES (?, ?, ?, 'erp')
+        """, (
+            payment["customer_id"],
+            f"Devolución simulada del folio {payment['folio']}",
+            f"Importe ${payment['amount']:.2f} MXN. "
+            f"Registrada por {admin['username']}"
+        ))
+
+    return {
+        "success": True,
+        "message": "Devolución simulada registrada."
+    }
+
+
+@app.get("/api/admin/resources")
+async def erp_resources_list(request: Request):
+    require_operations_admin(request)
+
+    with get_db() as db:
+        resources = db.execute("""
+            SELECT id, name, description, quantity, status
+            FROM resources
+            ORDER BY name, id
+        """).fetchall()
+
+        movements = db.execute("""
+            SELECT
+                rm.id,
+                rm.resource_id,
+                r.name AS resource_name,
+                rm.quantity_change,
+                rm.reason,
+                rm.created_at,
+                u.username
+            FROM resource_movements rm
+            JOIN resources r ON r.id = rm.resource_id
+            LEFT JOIN users u ON u.id = rm.user_id
+            ORDER BY rm.id DESC
+            LIMIT 30
+        """).fetchall()
+
+    return {
+        "success": True,
+        "data": [dict(r) for r in resources],
+        "movements": [dict(m) for m in movements]
+    }
+
+
+@app.post("/api/admin/resources", status_code=201)
+async def erp_create_resource(
+    data: ResourceCreate,
+    request: Request
+):
+    admin = require_operations_admin(request)
+    name = data.name.strip()
+    description = data.description.strip()
+
+    if len(name) < 2:
+        raise HTTPException(400, "Nombre de recurso inválido.")
+
+    with get_db() as db:
+        db.execute("BEGIN IMMEDIATE")
+        duplicate = db.execute("""
+            SELECT id
+            FROM resources
+            WHERE LOWER(name) = LOWER(?)
+        """, (name,)).fetchone()
+
+        if duplicate:
+            raise HTTPException(
+                409,
+                "Este recurso ya está registrado."
+            )
+
+        created = db.execute("""
+            INSERT INTO resources
+                (name, description, quantity, status)
+            VALUES (?, ?, ?, ?)
+        """, (
+            name,
+            description,
+            data.quantity,
+            data.status
+        ))
+
+        if data.quantity > 0:
+            db.execute("""
+                INSERT INTO resource_movements
+                    (resource_id, user_id,
+                     quantity_change, reason)
+                VALUES (?, ?, ?, ?)
+            """, (
+                created.lastrowid,
+                admin["id"],
+                data.quantity,
+                "Existencia inicial"
+            ))
+
+    return {
+        "success": True,
+        "message": "Recurso registrado correctamente."
+    }
+
+
+@app.put("/api/admin/resources/{resource_id}")
+async def erp_update_resource(
+    resource_id: int,
+    data: ResourceUpdate,
+    request: Request
+):
+    require_operations_admin(request)
+    name = data.name.strip()
+    description = data.description.strip()
+
+    if len(name) < 2:
+        raise HTTPException(400, "Nombre de recurso inválido.")
+
+    with get_db() as db:
+        db.execute("BEGIN IMMEDIATE")
+        existing = db.execute("""
+            SELECT id
+            FROM resources
+            WHERE id = ?
+        """, (resource_id,)).fetchone()
+
+        if not existing:
+            raise HTTPException(
+                404,
+                "Recurso no encontrado."
+            )
+
+        duplicate = db.execute("""
+            SELECT id
+            FROM resources
+            WHERE LOWER(name) = LOWER(?)
+              AND id <> ?
+        """, (name, resource_id)).fetchone()
+
+        if duplicate:
+            raise HTTPException(
+                409,
+                "Ya existe un recurso con ese nombre."
+            )
+
+        db.execute("""
+            UPDATE resources
+            SET name = ?, description = ?, status = ?
+            WHERE id = ?
+        """, (
+            name,
+            description,
+            data.status,
+            resource_id
+        ))
+
+    return {
+        "success": True,
+        "message": "Recurso actualizado correctamente."
+    }
+
+
+@app.post("/api/admin/resources/{resource_id}/adjust")
+async def erp_adjust_resource(
+    resource_id: int,
+    data: StockAdjustment,
+    request: Request
+):
+    admin = require_operations_admin(request)
+    reason = data.reason.strip()
+
+    if data.quantity_change == 0:
+        raise HTTPException(
+            400,
+            "El movimiento debe cambiar la cantidad."
+        )
+    if len(reason) < 3:
+        raise HTTPException(
+            400,
+            "Escribe un motivo válido."
+        )
+
+    with get_db() as db:
+        db.execute("BEGIN IMMEDIATE")
+        resource = db.execute("""
+            SELECT id, quantity
+            FROM resources
+            WHERE id = ?
+        """, (resource_id,)).fetchone()
+
+        if not resource:
+            raise HTTPException(
+                404,
+                "Recurso no encontrado."
+            )
+
+        new_quantity = (
+            resource["quantity"] + data.quantity_change
+        )
+        if not 0 <= new_quantity <= 1000000:
+            raise HTTPException(
+                409,
+                "La cantidad resultante no es válida."
+            )
+
+        db.execute("""
+            UPDATE resources
+            SET quantity = ?
+            WHERE id = ?
+        """, (new_quantity, resource_id))
+
+        db.execute("""
+            INSERT INTO resource_movements
+                (resource_id, user_id,
+                 quantity_change, reason)
+            VALUES (?, ?, ?, ?)
+        """, (
+            resource_id,
+            admin["id"],
+            data.quantity_change,
+            reason
+        ))
+
+    return {
+        "success": True,
+        "quantity": new_quantity,
+        "message": "Movimiento registrado correctamente."
     }
 
 
@@ -1944,3 +2523,566 @@ async def admin_update_schedule_day(
             if data.is_closed else "Día reabierto correctamente."
         )
     }
+
+
+# =====================================================
+# ETAPA 8 - CHATBOT DE RECEPCION VIRTUAL
+# =====================================================
+
+class ChatRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=500)
+
+
+class ChatAppointmentProof(BaseModel):
+    folio: str = Field(min_length=11, max_length=20)
+    email: str = Field(min_length=5, max_length=150)
+    phone: str = Field(min_length=10, max_length=20)
+
+
+def normalize_chat(text: str) -> str:
+    plain = unicodedata.normalize("NFKD", text.lower())
+    return "".join(
+        letter for letter in plain
+        if not unicodedata.combining(letter)
+    )
+
+
+@app.post("/api/chat")
+async def chatbot_reply(data: ChatRequest):
+    message = normalize_chat(data.message.strip())
+    action = None
+    options = [
+        "Servicios y precios",
+        "Reservar cita",
+        "Consultar mi cita",
+        "Cancelar mi cita"
+    ]
+
+    if any(word in message for word in (
+        "emergencia",
+        "urgencia",
+        "dolor de pecho",
+        "no puedo respirar",
+        "falta de aire",
+        "convulsion",
+        "hemorragia",
+        "desmayo"
+    )):
+        reply = (
+            "Si se trata de una emergencia, llama al "
+            "911 en México o acude a urgencias. "
+            "Este asistente no realiza diagnósticos."
+        )
+    elif any(word in message for word in (
+        "cancelar", "anular", "cancelacion"
+    )):
+        reply = (
+            "Para cancelar una cita, verifica tu folio, "
+            "correo y teléfono de registro."
+        )
+        action = "cancel"
+    elif any(word in message for word in (
+        "consultar mi cita",
+        "consultar cita",
+        "consultar reservacion",
+        "consultar folio",
+        "mi folio",
+        "mi cita",
+        "buscar folio",
+        "ver cita"
+    )):
+        reply = (
+            "Para consultar tu cita, verifica tu folio, "
+            "correo y teléfono de registro."
+        )
+        action = "lookup"
+    elif any(word in message for word in (
+        "reservar",
+        "agendar",
+        "apartar",
+        "sacar cita",
+        "solicitar cita"
+    )):
+        reply = (
+            "Puedes reservar aquí mismo. Elige "
+            "especialidad, profesional, fecha y horario."
+        )
+        action = "booking"
+    elif any(word in message for word in (
+        "horario",
+        "disponibilidad",
+        "cuando atienden"
+    )):
+        reply = (
+            "Los horarios dependen del profesional "
+            "y del día. Para ver los turnos libres, "
+            "abre Reservar cita y selecciona una fecha."
+        )
+    else:
+        with get_db() as db:
+            services = db.execute("""
+                SELECT name, price
+                FROM specialties
+                WHERE active = 1
+                ORDER BY name
+            """).fetchall()
+
+        selected = [
+            service for service in services
+            if normalize_chat(service["name"]) in message
+        ]
+
+        if any(word in message for word in (
+            "precio",
+            "costo",
+            "cuanto",
+            "especialidad",
+            "servicio",
+            "cardiologia",
+            "dermatologia",
+            "pediatria",
+            "nutricion",
+            "psicologia",
+            "medicina general"
+        )):
+            show = selected or services
+            reply = (
+                "Servicios de demostración (MXN):\n"
+                + "\n".join(
+                    f"• {service['name']}: "
+                    f"${float(service['price']):,.2f}"
+                    for service in show
+                )
+            )
+        elif any(word in message for word in (
+            "hola", "buenas", "ayuda", "menu"
+        )):
+            reply = (
+                "Hola, soy el asistente de MediBot 360. "
+                "Puedo mostrar servicios y precios, "
+                "agendar o consultar y cancelar citas."
+            )
+        else:
+            reply = (
+                "Puedo ayudarte con servicios, precios, "
+                "horarios y reservaciones. "
+                "Elige una opción para continuar."
+            )
+
+    return {
+        "success": True,
+        "reply": reply,
+        "action": action,
+        "options": options
+    }
+
+
+def find_verified_chat_appointment(
+    db,
+    credentials: ChatAppointmentProof
+):
+    error = HTTPException(
+        404,
+        "No se pudo verificar la reservación con esos datos."
+    )
+
+    folio = credentials.folio.strip().upper()
+    if not re.fullmatch(r"MB-[0-9A-F]{8}", folio):
+        raise error
+
+    email = credentials.email.strip().lower()
+    phone = re.sub(r"\D", "", credentials.phone)
+    if len(phone) < 10 or "@" not in email:
+        raise error
+
+    row = db.execute("""
+        SELECT
+            a.id,
+            a.folio,
+            a.customer_id,
+            a.status,
+            a.schedule_id,
+            c.email,
+            c.phone,
+            sp.name AS specialty_name,
+            p.full_name AS professional_name,
+            s.appointment_date,
+            s.start_time,
+            s.status AS schedule_status
+        FROM appointments a
+        JOIN customers c ON c.id = a.customer_id
+        JOIN professionals p ON p.id = a.professional_id
+        JOIN specialties sp ON sp.id = p.specialty_id
+        JOIN schedules s ON s.id = a.schedule_id
+        WHERE a.folio = ?
+    """, (folio,)).fetchone()
+
+    if row is None:
+        raise error
+
+    stored_email = (
+        row["email"] or ""
+    ).strip().lower().encode("utf-8")
+    entered_email = email.encode("utf-8")
+    stored_phone = re.sub(
+        r"\D", "", row["phone"] or ""
+    ).encode("utf-8")
+    entered_phone = phone.encode("utf-8")
+
+    if not (
+        hmac.compare_digest(stored_email, entered_email)
+        and hmac.compare_digest(stored_phone, entered_phone)
+    ):
+        raise error
+
+    return row
+
+
+@app.post("/api/chat/appointments/lookup")
+async def chat_lookup_appointment(
+    credentials: ChatAppointmentProof,
+    request: Request
+):
+    check_rate_limit(
+        request, "chat_verification", maximum=8
+    )
+    with get_db() as db:
+        appointment = find_verified_chat_appointment(db, credentials)
+
+    return {
+        "success": True,
+        "data": {
+            "folio": appointment["folio"],
+            "status": appointment["status"],
+            "specialty": appointment["specialty_name"],
+            "professional": appointment["professional_name"],
+            "date": appointment["appointment_date"],
+            "time": appointment["start_time"]
+        }
+    }
+
+
+@app.post("/api/chat/appointments/cancel")
+async def chat_cancel_appointment(
+    credentials: ChatAppointmentProof,
+    request: Request
+):
+    check_rate_limit(
+        request, "chat_verification", maximum=8
+    )
+    with get_db() as db:
+        db.execute("BEGIN IMMEDIATE")
+        appointment = find_verified_chat_appointment(db, credentials)
+
+        if appointment["status"] != "confirmed":
+            raise HTTPException(
+                409,
+                "La cita ya no está confirmada."
+            )
+        if appointment["schedule_status"] != "reserved":
+            raise HTTPException(
+                409,
+                "El horario requiere revisión administrativa."
+            )
+
+        paid = db.execute("""
+            SELECT 1
+            FROM payments
+            WHERE appointment_id = ?
+              AND status = 'paid'
+            LIMIT 1
+        """, (appointment["id"],)).fetchone()
+
+        if paid:
+            raise HTTPException(
+                409,
+                "Esta cita tiene un pago registrado. "
+                "Contacta a administración para gestionar "
+                "la devolución antes de cancelarla."
+            )
+
+        changed = db.execute("""
+            UPDATE appointments
+            SET status = 'cancelled'
+            WHERE id = ?
+              AND status = 'confirmed'
+        """, (appointment["id"],))
+
+        released = db.execute("""
+            UPDATE schedules
+            SET status = 'available'
+            WHERE id = ?
+              AND status = 'reserved'
+        """, (appointment["schedule_id"],))
+
+        if changed.rowcount != 1 or released.rowcount != 1:
+            raise HTTPException(
+                409,
+                "No se pudo cancelar la cita."
+            )
+
+        db.execute("""
+            INSERT INTO interactions
+            (customer_id, message, response, channel)
+            VALUES (?, ?, ?, 'chatbot')
+        """, (
+            appointment["customer_id"],
+            "Cancelación solicitada por chatbot: "
+            + appointment["folio"],
+            "Cita cancelada y horario liberado"
+        ))
+
+    return {
+        "success": True,
+        "message": (
+            "La reservación fue cancelada. "
+            "El horario quedó disponible."
+        )
+    }
+
+
+# =========================================================
+# ETAPA 9 - DASHBOARD ANALITICO
+# =========================================================
+
+@app.get("/api/admin/dashboard/analytics")
+async def dashboard_analytics(
+    request: Request,
+    days: int = Query(default=30, ge=7, le=90)
+):
+    if days not in (7, 30, 90):
+        raise HTTPException(
+            status_code=400,
+            detail="Selecciona 7, 30 o 90 días."
+        )
+
+    if not get_current_admin(request):
+        raise HTTPException(
+            status_code=401,
+            detail="Sesión administrativa requerida."
+        )
+
+    today = date.today()
+    start = today - timedelta(days=days - 1)
+    start_text = start.isoformat()
+    end_text = today.isoformat()
+
+    with get_db() as db:
+        customer_total = db.execute("""
+            SELECT COUNT(*) AS total
+            FROM customers
+            WHERE substr(created_at, 1, 10)
+                  BETWEEN ? AND ?
+        """, (start_text, end_text)).fetchone()["total"]
+
+        appointment_stats = db.execute("""
+            SELECT
+                COUNT(*) AS total,
+                COALESCE(SUM(
+                    CASE WHEN status = 'confirmed'
+                    THEN 1 ELSE 0 END
+                ), 0) AS confirmed,
+                COALESCE(SUM(
+                    CASE WHEN status = 'cancelled'
+                    THEN 1 ELSE 0 END
+                ), 0) AS cancelled
+            FROM appointments
+            WHERE substr(created_at, 1, 10)
+                  BETWEEN ? AND ?
+        """, (start_text, end_text)).fetchone()
+
+        payment_stats = db.execute("""
+            SELECT
+                COALESCE(SUM(
+                    CASE
+                        WHEN status = 'paid'
+                        AND substr(payment_date, 1, 10)
+                            BETWEEN ? AND ?
+                        THEN amount
+                        ELSE 0
+                    END
+                ), 0) AS paid,
+                COALESCE(SUM(
+                    CASE
+                        WHEN status = 'refunded'
+                        AND substr(refunded_at, 1, 10)
+                            BETWEEN ? AND ?
+                        THEN amount
+                        ELSE 0
+                    END
+                ), 0) AS refunded
+            FROM payments
+        """, (
+            start_text, end_text,
+            start_text, end_text
+        )).fetchone()
+
+        appointments_daily = db.execute("""
+            SELECT
+                substr(created_at, 1, 10) AS day,
+                COUNT(*) AS total
+            FROM appointments
+            WHERE substr(created_at, 1, 10)
+                  BETWEEN ? AND ?
+            GROUP BY substr(created_at, 1, 10)
+            ORDER BY day
+        """, (start_text, end_text)).fetchall()
+
+        customers_daily = db.execute("""
+            SELECT
+                substr(created_at, 1, 10) AS day,
+                COUNT(*) AS total
+            FROM customers
+            WHERE substr(created_at, 1, 10)
+                  BETWEEN ? AND ?
+            GROUP BY substr(created_at, 1, 10)
+            ORDER BY day
+        """, (start_text, end_text)).fetchall()
+
+        top_specialties = db.execute("""
+            SELECT
+                sp.name AS specialty,
+                COUNT(a.id) AS total
+            FROM appointments a
+            JOIN professionals p
+                ON p.id = a.professional_id
+            JOIN specialties sp
+                ON sp.id = p.specialty_id
+            WHERE substr(a.created_at, 1, 10)
+                  BETWEEN ? AND ?
+            GROUP BY sp.id, sp.name
+            ORDER BY total DESC, sp.name
+            LIMIT 6
+        """, (start_text, end_text)).fetchall()
+
+        payments_daily = db.execute("""
+            SELECT
+                substr(payment_date, 1, 10) AS day,
+                ROUND(SUM(amount), 2) AS total
+            FROM payments
+            WHERE status = 'paid'
+              AND substr(payment_date, 1, 10)
+                  BETWEEN ? AND ?
+            GROUP BY substr(payment_date, 1, 10)
+            ORDER BY day
+        """, (start_text, end_text)).fetchall()
+
+    all_dates = [
+        (start + timedelta(days=i)).isoformat()
+        for i in range(days)
+    ]
+
+    def daily_values(rows):
+        values = {
+            row["day"]: float(row["total"])
+            for row in rows
+        }
+        return [values.get(day, 0) for day in all_dates]
+
+    return {
+        "success": True,
+        "period": {
+            "days": days,
+            "start": start_text,
+            "end": end_text
+        },
+        "summary": {
+            "new_customers": customer_total,
+            "new_appointments": appointment_stats["total"],
+            "confirmed": appointment_stats["confirmed"],
+            "cancelled": appointment_stats["cancelled"],
+            "paid_amount": round(
+                float(payment_stats["paid"]), 2
+            ),
+            "refunded_amount": round(
+                float(payment_stats["refunded"]), 2
+            )
+        },
+        "charts": {
+            "dates": all_dates,
+            "appointments": daily_values(appointments_daily),
+            "customers": daily_values(customers_daily),
+            "payments": daily_values(payments_daily),
+            "specialties": [
+                {
+                    "name": row["specialty"],
+                    "total": row["total"]
+                }
+                for row in top_specialties
+            ]
+        }
+    }
+
+
+# ==================================================
+# ETAPA 10B - SEGURIDAD HTTP Y ORIGEN
+# ==================================================
+
+@app.middleware("http")
+async def medibot_security_middleware(
+    request: Request,
+    call_next
+):
+    path = request.url.path
+    method = request.method.upper()
+    modifying_methods = {"POST", "PUT", "PATCH", "DELETE"}
+
+    protected_action = (
+        path.startswith("/api/admin/")
+        or path in (
+                "/api/auth/login",
+                "/api/auth/logout"
+        )
+    )
+
+    if method in modifying_methods and protected_action:
+        source = (
+                request.headers.get("origin")
+                or request.headers.get("referer")
+        )
+
+        if not source:
+                return JSONResponse(
+                    status_code=403,
+                    content={
+                        "detail": (
+                            "No se pudo verificar el origen "
+                            "de la solicitud."
+                        )
+                    }
+                )
+
+        parsed = urlsplit(source)
+        valid_origin = (
+                parsed.scheme == request.url.scheme
+                and parsed.netloc.lower()
+                    == request.url.netloc.lower()
+        )
+
+        if not valid_origin:
+                return JSONResponse(
+                    status_code=403,
+                    content={
+                        "detail": (
+                            "Solicitud rechazada: "
+                            "origen no autorizado."
+                        )
+                    }
+                )
+
+    response = await call_next(request)
+
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = (
+        "strict-origin-when-cross-origin"
+    )
+
+    if (
+        path.startswith("/admin")
+        or path.startswith("/api/admin/")
+        or path.startswith("/api/chat/appointments/")
+    ):
+        response.headers["Cache-Control"] = "no-store"
+
+    return response

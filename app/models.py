@@ -112,7 +112,70 @@ def initialize_database():
             status TEXT DEFAULT 'available'
         );
 
+        -- ETAPA 10B: CONTROL DE INTENTOS DE SEGURIDAD
+
+        CREATE TABLE IF NOT EXISTS security_attempts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            fingerprint TEXT NOT NULL,
+            created_at INTEGER NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS
+            idx_security_attempts_fingerprint_time
+        ON security_attempts (fingerprint, created_at);
+
+        CREATE TABLE IF NOT EXISTS resource_movements (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            resource_id INTEGER NOT NULL,
+            user_id INTEGER,
+            quantity_change INTEGER NOT NULL,
+            reason TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (resource_id)
+                REFERENCES resources(id),
+            FOREIGN KEY (user_id)
+                REFERENCES users(id)
+        );
+
         """)
+
+        columns = {
+            row["name"]
+            for row in db.execute(
+                "PRAGMA table_info(appointments)"
+            ).fetchall()
+        }
+
+        if "agreed_price" not in columns:
+            db.execute("""
+                ALTER TABLE appointments
+                ADD COLUMN agreed_price REAL
+            """)
+
+        db.execute("""
+            UPDATE appointments
+            SET agreed_price = (
+                SELECT sp.price
+                FROM professionals p
+                JOIN specialties sp
+                    ON sp.id = p.specialty_id
+                WHERE p.id = appointments.professional_id
+            )
+            WHERE agreed_price IS NULL
+        """)
+
+        payment_columns = {
+            row["name"]
+            for row in db.execute(
+                "PRAGMA table_info(payments)"
+            ).fetchall()
+        }
+
+        if "refunded_at" not in payment_columns:
+            db.execute("""
+                ALTER TABLE payments
+                ADD COLUMN refunded_at DATETIME
+            """)
 
 def seed_specialties():
 

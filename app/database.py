@@ -1,4 +1,5 @@
 
+import os
 import sqlite3
 
 from pathlib import Path
@@ -9,7 +10,14 @@ DATABASE_DIR = BASE_DIR / "database"
 
 DATABASE_DIR.mkdir(exist_ok=True)
 
-DATABASE_PATH = DATABASE_DIR / "medibot.db"
+custom_database = os.getenv("MEDIBOT_DB_PATH")
+
+if custom_database:
+    DATABASE_PATH = Path(custom_database).expanduser().resolve()
+else:
+    DATABASE_PATH = DATABASE_DIR / "medibot.db"
+
+DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 
 @contextmanager

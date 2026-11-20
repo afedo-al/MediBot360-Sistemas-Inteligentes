@@ -1,0 +1,321 @@
+/* MEDIBOT 360 - CHATBOT */
+.mb-chat-root,
+.mb-chat-root * {
+    box-sizing: border-box;
+}
+
+.mb-chat-root {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    z-index: 2000;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.mb-chat-launcher {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 11px;
+    min-height: 56px;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 30px;
+    background: #1769e0;
+    color: white;
+    box-shadow: 0 12px 35px rgba(23, 105, 224, .27);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 750;
+    cursor: pointer;
+}
+
+.mb-chat-launcher span {
+    font-size: 22px;
+}
+
+.mb-chat-launcher:hover {
+    background: #1055bd;
+}
+
+.mb-chat-launcher:focus-visible,
+.mb-chat-header button:focus-visible,
+.mb-chat-actions button:focus-visible,
+.mb-chat-compose button:focus-visible,
+.mb-chat-workflow button:focus-visible {
+    outline: 3px solid rgba(23, 105, 224, .24);
+    outline-offset: 3px;
+}
+
+.mb-chat-panel {
+    position: absolute;
+    right: 0;
+    bottom: 72px;
+    display: flex;
+    flex-direction: column;
+    width: 395px;
+    max-width: calc(100vw - 28px);
+    height: min(690px, calc(100vh - 115px));
+    overflow: hidden;
+    border: 1px solid #e0e6ef;
+    border-radius: 22px;
+    background: white;
+    box-shadow: 0 22px 75px rgba(18, 38, 68, .20);
+}
+
+.mb-chat-panel[hidden],
+.mb-chat-workflow[hidden] {
+    display: none;
+}
+
+.mb-chat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 21px;
+    background: linear-gradient(120deg, #1769e0, #104da9);
+    color: white;
+}
+
+.mb-chat-header div {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.mb-chat-header strong {
+    font-size: 17px;
+}
+
+.mb-chat-header small {
+    color: rgba(255, 255, 255, .78);
+    font-size: 10px;
+}
+
+.mb-chat-header button {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 9px;
+    background: rgba(255, 255, 255, .15);
+    color: white;
+    font-size: 23px;
+    cursor: pointer;
+}
+
+.mb-chat-history {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 110px;
+    padding: 18px;
+    overflow-y: auto;
+    background: #f7f9fc;
+}
+
+.mb-chat-bubble {
+    max-width: 90%;
+    padding: 12px 15px;
+    border: 1px solid #e7edf5;
+    border-radius: 15px 15px 15px 4px;
+    background: white;
+    color: #435166;
+    font-size: 12px;
+    line-height: 1.7;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+    align-self: flex-start;
+}
+
+.mb-chat-bubble.user {
+    align-self: flex-end;
+    border-color: #1769e0;
+    border-radius: 15px 15px 4px 15px;
+    background: #1769e0;
+    color: white;
+}
+
+.mb-chat-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    max-height: 95px;
+    padding: 11px 15px;
+    overflow-y: auto;
+    border-top: 1px solid #edf0f5;
+    background: white;
+}
+
+.mb-chat-actions button {
+    padding: 8px 11px;
+    border: 1px solid #dce8fb;
+    border-radius: 20px;
+    background: #edf4ff;
+    color: #1769e0;
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.mb-chat-actions button:hover {
+    background: #dceaff;
+}
+
+.mb-chat-workflow {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 330px;
+    padding: 16px;
+    overflow-y: auto;
+    border-top: 1px solid #e6ecf5;
+    background: white;
+}
+
+.mb-chat-workflow > strong {
+    margin-bottom: 5px;
+    color: #182335;
+    font-size: 14px;
+}
+
+.mb-chat-workflow p {
+    margin: 0;
+    color: #738196;
+    font-size: 11px;
+    line-height: 1.6;
+}
+
+.mb-chat-workflow label {
+    color: #455267;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.mb-chat-workflow input,
+.mb-chat-workflow select {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    min-height: 42px;
+    padding: 0 12px;
+    border: 1px solid #dfe6ef;
+    border-radius: 10px;
+    outline: none;
+    background: #fbfcfe;
+    color: #182335;
+    font-family: inherit;
+    font-size: 12px;
+}
+
+.mb-chat-workflow input:focus,
+.mb-chat-workflow select:focus {
+    border-color: #1769e0;
+    box-shadow: 0 0 0 3px rgba(23, 105, 224, .10);
+}
+
+.mb-chat-workflow input:disabled,
+.mb-chat-workflow select:disabled {
+    opacity: .55;
+    cursor: not-allowed;
+}
+
+.mb-chat-workflow button[type="submit"] {
+    min-height: 46px;
+    margin-top: 7px;
+    border: none;
+    border-radius: 10px;
+    background: #1769e0;
+    color: white;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 750;
+    cursor: pointer;
+}
+
+.mb-chat-workflow button[type="submit"]:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+.mb-chat-form-status {
+    color: #b42335 !important;
+    font-size: 11px;
+}
+
+.mb-chat-compose {
+    display: flex;
+    flex-shrink: 0;
+    gap: 9px;
+    padding: 13px;
+    border-top: 1px solid #e9edf3;
+    background: white;
+}
+
+.mb-chat-compose input {
+    flex: 1;
+    min-width: 0;
+    height: 43px;
+    padding: 0 12px;
+    border: 1px solid #e1e7ef;
+    border-radius: 10px;
+    outline: none;
+    font-family: inherit;
+    font-size: 12px;
+}
+
+.mb-chat-compose input:focus {
+    border-color: #1769e0;
+}
+
+.mb-chat-compose button {
+    padding: 0 15px;
+    border: none;
+    border-radius: 10px;
+    background: #1769e0;
+    color: white;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.mb-chat-compose button:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+.mb-chat-disclaimer {
+    margin: 0;
+    padding: 0 12px 12px;
+    background: white;
+    color: #8b95a4;
+    text-align: center;
+    font-size: 9px;
+    line-height: 1.5;
+}
+
+@media (max-width: 600px) {
+    .mb-chat-root {
+        right: 12px;
+        bottom: 12px;
+    }
+
+    .mb-chat-panel {
+        width: calc(100vw - 24px);
+        height: min(680px, calc(100vh - 95px));
+        bottom: 67px;
+        border-radius: 17px;
+    }
+
+    .mb-chat-launcher {
+        min-height: 51px;
+        padding: 10px 15px;
+    }
+
+    .mb-chat-workflow {
+        max-height: 300px;
+    }
+}

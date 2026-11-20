@@ -25,6 +25,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function settleConfirmation(value) {
         confirmationModal.hidden = true;
+        if (modal.hidden) {
+            document.body.classList.remove("modal-open");
+        }
         const resolve = confirmationResolver;
         confirmationResolver = null;
         if (resolve) resolve(value);
@@ -35,6 +38,7 @@ document.addEventListener("DOMContentLoaded", () => {
         confirmationMessage.textContent = message;
         confirmationAccept.textContent = acceptText;
         confirmationModal.hidden = false;
+        document.body.classList.add("modal-open");
         confirmationAccept.focus();
         return new Promise(resolve => {
             confirmationResolver = resolve;
@@ -171,6 +175,9 @@ document.addEventListener("DOMContentLoaded", () => {
         optionsRequest++;
         activeReschedule = null;
         modal.hidden = true;
+        if (confirmationModal.hidden) {
+            document.body.classList.remove("modal-open");
+        }
     }
 
     async function openReschedule(appointment) {
@@ -192,6 +199,7 @@ document.addEventListener("DOMContentLoaded", () => {
             appointment.professional_name;
         rescheduleFeedback.textContent = "Cargando profesionales...";
         modal.hidden = false;
+        document.body.classList.add("modal-open");
         rescheduleClose.focus();
 
         try {

@@ -9,6 +9,7 @@
     <title>MediBot 360 | Tu atención, más sencilla</title>
 
     <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/chatbot.css?v=8a1">
 </head>
 
 <body>
@@ -98,7 +99,108 @@
         <p>Los servicios y datos son demostrativos.</p>
     </footer>
 
+    <div id="mb-chat-root" class="mb-chat-root">
+        <button id="mb-chat-toggle" class="mb-chat-launcher" type="button"
+                aria-controls="mb-chat-panel" aria-expanded="false">
+            <span aria-hidden="true">✚</span>
+            Hablar con MediBot
+        </button>
+
+        <section id="mb-chat-panel" class="mb-chat-panel"
+                 aria-label="Asistente virtual MediBot" hidden>
+            <header class="mb-chat-header">
+                <div>
+                    <strong>MediBot 360</strong>
+                    <small>Recepción virtual · Proyecto académico</small>
+                </div>
+                <button id="mb-chat-close" type="button"
+                        aria-label="Cerrar chatbot">×</button>
+            </header>
+
+            <div id="mb-chat-history" class="mb-chat-history"
+                 role="log" aria-live="polite"></div>
+            <div id="mb-chat-actions" class="mb-chat-actions"
+                 aria-label="Opciones rápidas"></div>
+
+            <form id="mb-chat-booking" class="mb-chat-workflow" hidden>
+                <strong>Reservar una cita</strong>
+
+                <label for="mb-chat-specialty">Especialidad</label>
+                <select id="mb-chat-specialty" required>
+                    <option value="">Selecciona especialidad</option>
+                </select>
+
+                <label for="mb-chat-professional">Profesional</label>
+                <select id="mb-chat-professional" required disabled>
+                    <option value="">Selecciona profesional</option>
+                </select>
+
+                <label for="mb-chat-date">Fecha</label>
+                <input id="mb-chat-date" type="date" required disabled>
+
+                <label for="mb-chat-slot">Horario</label>
+                <select id="mb-chat-slot" required disabled>
+                    <option value="">Selecciona horario</option>
+                </select>
+
+                <label for="mb-chat-name">Nombre completo</label>
+                <input id="mb-chat-name" minlength="3" maxlength="150"
+                       autocomplete="name" required>
+
+                <label for="mb-chat-email">Correo electrónico</label>
+                <input id="mb-chat-email" type="email" maxlength="150"
+                       autocomplete="email" required>
+
+                <label for="mb-chat-phone">Teléfono</label>
+                <input id="mb-chat-phone" type="tel" minlength="10"
+                       maxlength="20" autocomplete="tel" required>
+
+                <p id="mb-chat-book-status"
+                   class="mb-chat-form-status" role="status"></p>
+                <button id="mb-chat-book-submit" type="submit" disabled>
+                    Confirmar reservación
+                </button>
+            </form>
+
+            <form id="mb-chat-verify" class="mb-chat-workflow" hidden>
+                <strong>Verificación de reservación</strong>
+                <p>Ingresa el folio, correo y teléfono registrados en tu cita.</p>
+
+                <label for="mb-chat-folio">Folio</label>
+                <input id="mb-chat-folio" placeholder="MB-XXXXXXXX"
+                       minlength="11" maxlength="20" required>
+
+                <label for="mb-chat-proof-email">Correo registrado</label>
+                <input id="mb-chat-proof-email" type="email"
+                       maxlength="150" required>
+
+                <label for="mb-chat-proof-phone">Teléfono registrado</label>
+                <input id="mb-chat-proof-phone" type="tel"
+                       minlength="10" maxlength="20" required>
+
+                <p id="mb-chat-proof-status"
+                   class="mb-chat-form-status" role="status"></p>
+                <button id="mb-chat-proof-submit" type="submit">
+                    Continuar
+                </button>
+            </form>
+
+            <form id="mb-chat-compose" class="mb-chat-compose">
+                <input id="mb-chat-message"
+                       placeholder="Escribe tu pregunta..."
+                       maxlength="500" aria-label="Mensaje para MediBot" required>
+                <button id="mb-chat-send" type="submit">Enviar</button>
+            </form>
+
+            <p class="mb-chat-disclaimer">
+                Asistente informativo: no da diagnósticos.
+                Emergencias: 911.
+            </p>
+        </section>
+    </div>
+
     <script src="/static/js/app.js"></script>
+    <script src="/static/js/chatbot.js?v=8a1"></script>
 
 </body>
 </html>

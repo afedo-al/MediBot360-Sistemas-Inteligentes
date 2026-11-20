@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ title }}</title>
-    <link rel="stylesheet" href="/static/css/admin.css">
+    <link rel="stylesheet" href="/static/css/admin.css?v=7e4">
     <script src="/static/js/admin.js" defer></script>
     <script src="/static/js/erp.js" defer></script>
 </head>
@@ -18,6 +18,7 @@
             <a href="/admin/reservaciones" class="nav-item active"><span>▣</span>Reservaciones</a>
             <a href="/admin/catalogo" class="nav-item"><span>✚</span>Catálogo</a>
             <a href="/admin/horarios" class="nav-item"><span>▦</span>Horarios</a>
+            <a href="/admin/operaciones" class="nav-item"><span>▤</span>Pagos y recursos</a>
             <div class="nav-item disabled"><span>▤</span>Reportes<small>Próximamente</small></div>
         </nav>
         <div class="sidebar-bottom">
@@ -45,7 +46,7 @@
         </section>
         <footer class="admin-footer"><span>MediBot 360 · ERP</span><span>Administración de reservaciones</span></footer>
         <div id="erp-confirm-modal" class="erp-confirm-modal" hidden>
-            <section class="erp-confirm-panel" role="dialog" aria-modal="true" aria-labelledby="erp-confirm-title">
+            <section class="erp-confirm-panel mb-admin-confirm" role="dialog" aria-modal="true" aria-labelledby="erp-confirm-title">
                 <div class="erp-confirm-icon">!</div>
                 <h2 id="erp-confirm-title">Confirmar acción</h2>
                 <p id="erp-confirm-message"></p>
@@ -56,7 +57,7 @@
             </section>
         </div>
         <div id="erp-reschedule-modal" class="erp-reschedule-modal" hidden>
-            <section class="erp-modal-panel" role="dialog" aria-modal="true" aria-labelledby="erp-modal-title">
+            <section class="erp-modal-panel mb-admin-modal" role="dialog" aria-modal="true" aria-labelledby="erp-modal-title">
                 <div class="erp-modal-header">
                     <div><span class="breadcrumb">MEDIBOT 360 / ERP</span><h2 id="erp-modal-title">Reprogramar reservación</h2><p>Selecciona el nuevo profesional, fecha y horario.</p></div>
                     <button type="button" id="erp-reschedule-close" class="erp-modal-close" aria-label="Cerrar">×</button>

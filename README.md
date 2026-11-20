@@ -1,101 +1,76 @@
 # MediBot 360
 
-Plataforma web para coordinar servicios médicos, gestionar reservaciones y dar seguimiento a clientes desde un panel administrativo.
+Plataforma de coordinación de servicios médicos desarrollada como proyecto académico.
 
-## Funcionalidades
+## Descripción
 
-- Página pública con especialidades, profesionales y disponibilidad.
-- Reservación de citas con folio único.
-- Validación de fechas, disponibilidad y días no permitidos.
-- Panel administrativo protegido por sesión.
-- CRM de clientes con búsqueda, edición, historial e interacciones.
-- ERP de reservaciones con filtros por texto, estado y fecha.
-- Cancelación transaccional de citas y liberación automática de horarios.
-- Reprogramación de citas conservando el folio y validando la especialidad.
-- Catálogo administrativo de especialidades y profesionales.
-- Activación y desactivación protegida ante citas confirmadas pendientes.
-- Registro de cancelaciones en el historial del CRM.
-- Persistencia local con SQLite.
+MediBot 360 simula una empresa de servicios médicos en San Francisco de Campeche, México.
+Integra una página pública, reservaciones, chatbot, CRM, ERP y dashboard administrativo.
 
-## Stack tecnológico
+No realiza diagnósticos médicos ni procesa pagos reales.
 
-- Python 3.13+
-- FastAPI
-- Jinja2
+## Tecnologías
+
+- Python y FastAPI
 - SQLite
-- HTML, CSS y JavaScript vanilla
-- Uvicorn
+- Jinja2
+- HTML, CSS y JavaScript
+- Chart.js
+- pytest y HTTPX
 
-## Requisitos
+## Módulos
 
-- Python 3.13 o superior
-- `pip`
+- Sitio público y reservaciones.
+- Chatbot basado en reglas.
+- CRM de clientes e interacciones.
+- ERP de horarios, pagos simulados y recursos.
+- Dashboard con indicadores y gráficas.
 
 ## Instalación
 
-```powershell
-git clone https://github.com/afedo-al/MediBot360-Sistemas-Inteligentes.git
-cd MediBot360
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-```
-
-Crea un archivo `.env` en la raíz:
-
-```env
-MEDIBOT_SESSION_SECRET=tu-clave-secreta-larga
-```
-
-## Ejecución
+1. Instalar Python compatible.
+2. Crear y activar un entorno virtual.
+3. Instalar dependencias:
 
 ```powershell
-python -m uvicorn main:app --reload
+python -m pip install -r requirements-dev.txt
 ```
 
-La aplicación estará disponible en:
-
-- Sitio público: <http://127.0.0.1:8000>
-- Reservaciones: <http://127.0.0.1:8000/reservar>
-- Panel administrativo: <http://127.0.0.1:8000/admin>
-- CRM: <http://127.0.0.1:8000/admin/clientes>
-- ERP: <http://127.0.0.1:8000/admin/reservaciones>
-- Catálogo: <http://127.0.0.1:8000/admin/catalogo>
-
-## Usuario administrador
-
-Para crear o actualizar un administrador:
+4. Crear `.env` a partir de `.env.example`.
+5. Crear el administrador:
 
 ```powershell
 python create_admin.py
 ```
 
-El script solicita las credenciales de forma interactiva. No incluyas `.env`, la base de datos ni credenciales en el repositorio.
-
-## Estructura principal
-
-```text
-MediBot360/
-├── app/                  # Base de datos, modelos y seguridad
-├── database/             # SQLite local, excluida de Git
-├── static/               # CSS y JavaScript del sitio
-├── templates/            # Plantillas Jinja2
-├── create_admin.py       # Alta de administradores
-├── main.py               # Aplicación FastAPI y endpoints
-├── requirements.txt      # Dependencias
-└── .env                  # Configuración local, no versionada
-```
-
-## Validación
+6. Iniciar el servidor:
 
 ```powershell
-python -m py_compile main.py
+python -m uvicorn main:app --reload
 ```
 
-## Seguridad y datos
+## Acceso
 
-Este proyecto está preparado como aplicación académica/prototipo. Usa una clave de sesión segura en producción, protege el archivo `.env`, configura HTTPS y utiliza una base de datos administrada antes de desplegarlo públicamente.
+- Sitio público: http://127.0.0.1:8000/
+- Panel administrativo: http://127.0.0.1:8000/admin
+- Documentación: http://127.0.0.1:8000/docs
 
-## Licencia
+## Pruebas
 
-Proyecto académico de MediBot 360. Añade la licencia que corresponda antes de distribuirlo públicamente.
+```powershell
+python -m pytest tests/ -v
+```
+
+## Seguridad
+
+- Sesiones administrativas con cookies HttpOnly.
+- Contraseñas protegidas mediante PBKDF2.
+- Protección de origen en operaciones administrativas.
+- Límites básicos de intentos.
+- Encabezados HTTP de protección del navegador.
+- Transacciones SQLite en operaciones críticas.
+
+## Alcance
+
+Todos los datos son ficticios. El proyecto es académico y demostrativo.
+No sustituye un expediente clínico, no proporciona diagnósticos y no procesa pagos reales.
