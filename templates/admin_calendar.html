@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="/static/css/admin.css?v=7e4">
+    <link rel="stylesheet" href="/static/css/medibot-next.css?v=11a">
+    <script src="/static/js/admin.js" defer></script>
+    <script src="/static/js/medibot-next.js?v=11a" defer></script>
+    <script src="/static/js/calendar.js?v=11a" defer></script>
+</head>
+<body class="dashboard-page">
+    <aside class="admin-sidebar">
+        <a href="/admin" class="admin-brand">
+            <span class="brand-symbol">✚</span>
+            <span>MediBot <strong>360</strong></span>
+        </a>
+        <span class="sidebar-label">ESPACIO DE TRABAJO</span>
+        <nav class="admin-navigation" aria-label="Navegación administrativa"></nav>
+        <div class="sidebar-bottom">
+            <div class="administrator-info">
+                <div class="administrator-avatar">{{ admin.username[0]|upper }}</div>
+                <div>
+                    <strong>{{ admin.username }}</strong>
+                    <span>Administrador</span>
+                </div>
+            </div>
+            <button id="logout-button" class="logout-button" type="button">Cerrar sesión</button>
+        </div>
+    </aside>
+
+    <main class="admin-content">
+        <header class="admin-topbar">
+            <div>
+                <span class="breadcrumb">MEDIBOT 360 / OPERACIONES / AGENDA</span>
+                <h1>Calendario de reservaciones</h1>
+            </div>
+            <a href="/admin/reservaciones" class="visit-site">Administrar citas</a>
+        </header>
+
+        <section class="welcome-section">
+            <div>
+                <span class="welcome-label">AGENDA INTELIGENTE</span>
+                <h2>Todo tu calendario en un lugar.</h2>
+                <p>Visualiza reservaciones, consulta profesionales y accede al ERP desde cualquier cita.</p>
+            </div>
+            <div class="welcome-symbol">▦</div>
+        </section>
+
+        <section class="mb-cal-shell">
+            <div class="mb-cal-toolbar">
+                <div class="mb-cal-navigation">
+                    <button type="button" id="mb-cal-prev" aria-label="Periodo anterior">‹</button>
+                    <button type="button" id="mb-cal-today">Hoy</button>
+                    <button type="button" id="mb-cal-next" aria-label="Periodo siguiente">›</button>
+                    <h2 id="mb-cal-title">Calendario</h2>
+                </div>
+                <div class="mb-cal-controls">
+                    <select id="mb-cal-professional" aria-label="Filtrar por profesional">
+                        <option value="">Todos los profesionales</option>
+                    </select>
+                    <div class="mb-cal-view-switch" role="group" aria-label="Vista del calendario">
+                        <button type="button" data-cal-view="month" class="active">Mes</button>
+                        <button type="button" data-cal-view="week">Semana</button>
+                        <button type="button" data-cal-view="day">Día</button>
+                    </div>
+                    <button type="button" id="mb-cal-export" class="mb-cal-export">Exportar CSV</button>
+                </div>
+            </div>
+
+            <div class="mb-cal-legend">
+                <span><i class="mb-dot confirmed"></i>Confirmada</span>
+                <span><i class="mb-dot cancelled"></i>Cancelada</span>
+                <span id="mb-cal-count" role="status" aria-live="polite">Consultando agenda...</span>
+            </div>
+
+            <div id="mb-cal-grid" class="mb-cal-grid"></div>
+        </section>
+
+        <section id="mb-cal-detail" class="mb-cal-detail" aria-label="Detalle de reservación" hidden></section>
+
+        <footer class="admin-footer">
+            <span>MediBot 360 · Agenda</span>
+            <span>Calendario conectado con ERP</span>
+        </footer>
+    </main>
+</body>
+</html>

@@ -176,10 +176,57 @@ def test_logout_invalidates_session(client):
 
 
 def test_security_headers(client):
-    response = client.get("/")
+    response = client.get("/sitio")
     assert response.status_code == 200
     assert response.headers.get("x-content-type-options") == "nosniff"
     assert response.headers.get("x-frame-options") == "DENY"
 
     private = client.get("/api/admin/customers")
     assert private.headers.get("cache-control") == "no-store"
+
+
+def test_root_redirects_to_admin_and_public_site_is_separate(client):
+    root = client.get("/", follow_redirects=False)
+    assert root.status_code == 303
+    assert root.headers["location"] == "/admin"
+
+    assert client.get("/sitio").status_code == 200
+
+    admin = client.get("/admin", follow_redirects=False)
+    assert admin.status_code == 303
+    assert admin.headers["location"] == "/admin/login"
+
+
+def test_calendar_and_alerts_require_session(client):
+    assert client.get("/admin/calendario", follow_redirects=False).status_code == 303
+    url = "/api/admin/calendar?start=2026-01-01&end=2026-01-31"
+    assert client.get(url).status_code == 401
+    assert client.get("/api/admin/overview-alerts").status_code == 401
+
+
+def test_calendar_and_alerts_with_session(client):
+    login_test_admin(client)
+
+    page = client.get("/admin/calendario")
+    assert page.status_code == 200
+    assert "mb-cal-grid" in page.text
+
+    ok = client.get("/api/admin/calendar?start=2026-01-01&end=2026-01-31")
+    assert ok.status_code == 200
+    assert ok.json()["data"] == []
+
+    assert client.get(
+        "/api/admin/calendar?start=2026-02-01&end=2026-01-01"
+    ).status_code == 422
+    assert client.get(
+        "/api/admin/calendar?start=2026-01-01&end=2027-01-01"
+    ).status_code == 422
+    assert client.get(
+        "/api/admin/calendar?start=2026-13-45&end=2026-14-01"
+    ).status_code == 422
+
+    alerts = client.get("/api/admin/overview-alerts")
+    assert alerts.status_code == 200
+    body = alerts.json()
+    assert {"upcoming", "low_stock", "counts"} <= body.keys()
+    assert len(body["upcoming"]) <= 6

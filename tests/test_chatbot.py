@@ -67,7 +67,7 @@ def proof(folio, **changes):
 
 
 def test_01_chatbot_visible_and_static_files(client):
-    home = client.get("/")
+    home = client.get("/sitio")
     assert home.status_code == 200
     assert 'id="mb-chat-toggle"' in home.text
     assert 'id="mb-chat-panel"' in home.text

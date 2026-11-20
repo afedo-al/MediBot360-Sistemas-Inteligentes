@@ -333,5 +333,8 @@ document.addEventListener("DOMContentLoaded", () => {
         dateInput.value = "";
         loadAppointments();
     });
+    const initialSearch = new URLSearchParams(window.location.search).get("search");
+    if (initialSearch) search.value = initialSearch;
+
     loadAppointments();
 });

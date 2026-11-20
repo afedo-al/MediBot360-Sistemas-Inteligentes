@@ -126,12 +126,27 @@ templates = Jinja2Templates(
 )
 
 
+# ============================================
+# MEDIBOT 360 - ENTRADA UNIFICADA
+# ============================================
+
 @app.get("/")
-async def home(request: Request):
+async def app_entry(request: Request):
+    """
+    La aplicación abre en el área administrativa.
+    Si hay sesión, /admin muestra el dashboard.
+    Si no hay sesión, /admin redirige al login.
+    """
+    return RedirectResponse(url="/admin", status_code=303)
+
+
+@app.get("/sitio")
+async def public_site(request: Request):
+    """Portal público, separado de la entrada del sistema."""
     return templates.TemplateResponse(
         request=request,
         name="index.html",
-        context={"title": "MediBot 360"}
+        context={"title": "MediBot 360 | Portal público"}
     )
 
 
@@ -3086,3 +3101,168 @@ async def medibot_security_middleware(
         response.headers["Cache-Control"] = "no-store"
 
     return response
+
+
+# =============================================
+# ETAPA 11 - CALENDARIO Y CENTRO DE AVISOS
+# =============================================
+
+CALENDAR_MAX_DAYS = 62
+LOW_STOCK_THRESHOLD = 5
+UPCOMING_ALERT_LIMIT = 6
+
+
+def parse_calendar_date(value: str, label: str) -> date:
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        raise HTTPException(
+            status_code=422,
+            detail=f"La fecha {label} no es válida (AAAA-MM-DD)."
+        )
+
+
+@app.get("/admin/calendario")
+async def admin_calendar_page(request: Request):
+    admin = get_current_admin(request)
+
+    if not admin:
+        return RedirectResponse("/admin/login", status_code=303)
+
+    return templates.TemplateResponse(
+        request=request,
+        name="admin_calendar.html",
+        context={
+            "title": "Agenda inteligente | MediBot 360",
+            "admin": admin
+        }
+    )
+
+
+@app.get("/api/admin/calendar")
+async def admin_calendar_events(
+    request: Request,
+    start: str = Query(min_length=10, max_length=10),
+    end: str = Query(min_length=10, max_length=10),
+    professional_id: int | None = Query(default=None, gt=0)
+):
+    require_admin(request)
+
+    start_date = parse_calendar_date(start, "inicial")
+    end_date = parse_calendar_date(end, "final")
+
+    if end_date < start_date:
+        raise HTTPException(
+            status_code=422,
+            detail="La fecha final debe ser posterior a la inicial."
+        )
+
+    if (end_date - start_date).days > CALENDAR_MAX_DAYS:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"El rango máximo es de {CALENDAR_MAX_DAYS} días."
+            )
+        )
+
+    sql = """
+        SELECT
+            a.id,
+            a.folio,
+            a.status,
+            c.full_name AS customer_name,
+            p.id AS professional_id,
+            p.full_name AS professional_name,
+            sp.name AS specialty_name,
+            s.appointment_date,
+            s.start_time,
+            s.end_time
+        FROM appointments a
+        JOIN customers c ON c.id = a.customer_id
+        JOIN professionals p ON p.id = a.professional_id
+        JOIN specialties sp ON sp.id = p.specialty_id
+        JOIN schedules s ON s.id = a.schedule_id
+        WHERE s.appointment_date BETWEEN ? AND ?
+    """
+    params: list = [start_date.isoformat(), end_date.isoformat()]
+
+    if professional_id is not None:
+        sql += " AND a.professional_id = ?"
+        params.append(professional_id)
+
+    sql += " ORDER BY s.appointment_date, s.start_time, a.id"
+
+    with get_db() as db:
+        rows = db.execute(sql, params).fetchall()
+
+    return {
+        "success": True,
+        "start": start_date.isoformat(),
+        "end": end_date.isoformat(),
+        "data": [dict(row) for row in rows]
+    }
+
+
+@app.get("/api/admin/overview-alerts")
+async def admin_overview_alerts(request: Request):
+    require_admin(request)
+
+    now = time.localtime()
+    today = time.strftime("%Y-%m-%d", now)
+    current_time = time.strftime("%H:%M", now)
+
+    with get_db() as db:
+        upcoming = db.execute("""
+            SELECT
+                a.folio,
+                c.full_name AS customer_name,
+                p.full_name AS professional_name,
+                s.appointment_date,
+                s.start_time
+            FROM appointments a
+            JOIN customers c ON c.id = a.customer_id
+            JOIN professionals p ON p.id = a.professional_id
+            JOIN schedules s ON s.id = a.schedule_id
+            WHERE a.status = 'confirmed'
+              AND (
+                  s.appointment_date > ?
+                  OR (s.appointment_date = ? AND s.start_time >= ?)
+              )
+            ORDER BY s.appointment_date, s.start_time, a.id
+            LIMIT ?
+        """, (
+            today, today, current_time, UPCOMING_ALERT_LIMIT
+        )).fetchall()
+
+        low_stock = db.execute("""
+            SELECT id, name, quantity
+            FROM resources
+            WHERE quantity <= ?
+            ORDER BY quantity, name
+            LIMIT 10
+        """, (LOW_STOCK_THRESHOLD,)).fetchall()
+
+        unpaid = db.execute("""
+            SELECT COUNT(*) AS total
+            FROM appointments a
+            WHERE a.status = 'confirmed'
+              AND COALESCE((
+                  SELECT p.status
+                  FROM payments p
+                  WHERE p.appointment_id = a.id
+                  ORDER BY p.id DESC
+                  LIMIT 1
+              ), 'unpaid') <> 'paid'
+        """).fetchone()["total"]
+
+    return {
+        "success": True,
+        "upcoming": [dict(row) for row in upcoming],
+        "low_stock": [dict(row) for row in low_stock],
+        "counts": {
+            "upcoming": len(upcoming),
+            "low_stock": len(low_stock),
+            "unpaid": unpaid
+        },
+        "low_stock_threshold": LOW_STOCK_THRESHOLD
+    }
