@@ -33,7 +33,7 @@ document.addEventListener("DOMContentLoaded", () => {
         {label: "Especialidades y personal", icon: "✚", href: "/admin/catalogo", match: p => p.startsWith("/admin/catalogo")},
         {label: "Horarios", icon: "▤", href: "/admin/horarios", match: p => p === "/admin/horarios"},
         {label: "Pagos y recursos", icon: "◇", href: "/admin/operaciones", match: p => p === "/admin/operaciones"},
-        {label: "Análisis y reportes", icon: "▥", href: "/admin#analytics-dashboard", match: () => false},
+        {label: "Análisis y reportes", icon: "▥", href: "/admin/reportes", match: p => p.startsWith("/admin/reportes")},
         {label: "Ver sitio público", icon: "↗", href: "/sitio", match: () => false}
     ];
 

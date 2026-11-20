@@ -10,8 +10,8 @@
 
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="stylesheet" href="/static/css/chatbot.css?v=8a1">
-    <link rel="stylesheet" href="/static/css/medibot-next.css?v=11a">
-    <script src="/static/js/medibot-next.js?v=11a" defer></script>
+    <link rel="stylesheet" href="/static/css/medibot-next.css?v=12d">
+    <script src="/static/js/medibot-next.js?v=12a" defer></script>
 </head>
 
 <body>
@@ -25,6 +25,8 @@
         <nav class="nav-links">
             <a href="#inicio">Inicio</a>
             <a href="#servicios">Especialidades</a>
+            <a href="#proceso">Cómo funciona</a>
+            <a href="#contacto">Contacto</a>
             <a href="#nosotros">Nosotros</a>
         </nav>
 
@@ -81,6 +83,81 @@
                 <p class="loading-message">
                     Cargando especialidades...
                 </p>
+            </div>
+
+        </section>
+
+        <section class="how-it-works" id="proceso">
+
+            <span class="eyebrow">CÓMO FUNCIONA</span>
+
+            <h2>Reservar es simple.</h2>
+
+            <div class="steps-grid">
+                <article class="step-card">
+                    <span class="step-number">1</span>
+                    <h3>Elige tu servicio</h3>
+                    <p>Consulta especialidades, profesionales y precios de demostración.</p>
+                </article>
+                <article class="step-card">
+                    <span class="step-number">2</span>
+                    <h3>Selecciona fecha y horario</h3>
+                    <p>Solo se muestran turnos libres de los próximos 14 días.</p>
+                </article>
+                <article class="step-card">
+                    <span class="step-number">3</span>
+                    <h3>Recibe tu folio</h3>
+                    <p>Con el folio puedes consultar o cancelar tu cita desde el chatbot.</p>
+                </article>
+            </div>
+
+        </section>
+
+        <section class="contact" id="contacto">
+
+            <span class="eyebrow">CONTACTO</span>
+
+            <h2>¿Tienes dudas? Escríbenos.</h2>
+
+            <p class="section-description">
+                Tu mensaje llega a recepción y queda registrado en el CRM.
+            </p>
+
+            <div class="contact-layout">
+
+                <ul class="contact-info">
+                    <li><strong>Dirección</strong><span>Av. Demostración 123, Centro, San Francisco de Campeche (ficticia)</span></li>
+                    <li><strong>Teléfono</strong><span>981 000 0000 (ficticio)</span></li>
+                    <li><strong>Correo</strong><span>contacto@medibot360.example</span></li>
+                    <li><strong>Horario</strong><span>Lunes a sábado de 9:00 a 18:00</span></li>
+                </ul>
+
+                <form id="contact-form" class="contact-form" novalidate>
+                    <label for="contact-name">Nombre completo</label>
+                    <input id="contact-name" name="full_name" minlength="3"
+                           maxlength="150" autocomplete="name" required>
+
+                    <label for="contact-email">Correo electrónico</label>
+                    <input id="contact-email" name="email" type="email"
+                           maxlength="150" autocomplete="email" required>
+
+                    <label for="contact-phone">Teléfono (opcional)</label>
+                    <input id="contact-phone" name="phone" type="tel"
+                           maxlength="20" autocomplete="tel">
+
+                    <label for="contact-message">Mensaje</label>
+                    <textarea id="contact-message" name="message" rows="4"
+                              minlength="5" maxlength="1000" required></textarea>
+
+                    <p id="contact-status" class="contact-status" role="status"
+                       aria-live="polite"></p>
+
+                    <button id="contact-submit" type="submit"
+                            class="primary-button">Enviar mensaje</button>
+
+                    <small>Usa datos de demostración. No envíes información médica.</small>
+                </form>
+
             </div>
 
         </section>

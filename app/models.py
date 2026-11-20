@@ -177,6 +177,34 @@ def initialize_database():
                 ADD COLUMN refunded_at DATETIME
             """)
 
+        # CRM: origen del cliente (web, chatbot, contacto, admin).
+        customer_columns = {
+            row["name"]
+            for row in db.execute(
+                "PRAGMA table_info(customers)"
+            ).fetchall()
+        }
+
+        if "source" not in customer_columns:
+            db.execute("""
+                ALTER TABLE customers
+                ADD COLUMN source TEXT DEFAULT 'web'
+            """)
+
+        # Chatbot: intención detectada en cada mensaje.
+        interaction_columns = {
+            row["name"]
+            for row in db.execute(
+                "PRAGMA table_info(interactions)"
+            ).fetchall()
+        }
+
+        if "intent" not in interaction_columns:
+            db.execute("""
+                ALTER TABLE interactions
+                ADD COLUMN intent TEXT
+            """)
+
 def seed_specialties():
 
     specialties = [

@@ -1,6 +1,8 @@
 
+import csv
 import hashlib
 import hmac
+import io
 import os
 import re
 import secrets
@@ -12,7 +14,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query, Request
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
@@ -68,6 +70,10 @@ class LoginRequest(BaseModel):
         min_length=1,
         max_length=200
     )
+
+
+CUSTOMER_STATUSES = {"lead", "active", "inactive"}
+CUSTOMER_SOURCES = {"web", "chatbot", "contacto", "admin"}
 
 
 class SpecialtyRequest(BaseModel):
@@ -376,9 +382,9 @@ async def create_appointment(
         if customer is None:
             db.execute("""
                 INSERT INTO customers
-                (full_name, email, phone)
-                VALUES (?, ?, ?)
-            """, (full_name, email, phone))
+                (full_name, email, phone, source)
+                VALUES (?, ?, ?, ?)
+            """, (full_name, email, phone, appointment.source))
 
             customer = db.execute("""
                 SELECT id
@@ -386,10 +392,15 @@ async def create_appointment(
                 WHERE id = last_insert_rowid()
             """).fetchone()
         else:
+            # Un prospecto que reserva pasa a ser cliente activo.
             db.execute("""
                 UPDATE customers
                 SET full_name = ?,
-                    phone = COALESCE(?, phone)
+                    phone = COALESCE(?, phone),
+                    status = CASE
+                        WHEN status = 'lead' THEN 'active'
+                        ELSE status
+                    END
                 WHERE id = ?
             """, (full_name, phone, customer["id"]))
 
@@ -1117,38 +1128,76 @@ async def crm_customer_profile(customer_id: int, request: Request):
     )
 
 
+def query_customers(
+    db,
+    search: str = "",
+    status: str = "",
+    source: str = ""
+):
+    """Consulta de clientes compartida por el listado y la exportación."""
+    search = search.strip()
+    like = f"%{search}%"
+
+    conditions = ["""(
+        c.full_name LIKE ?
+        OR COALESCE(c.email, '') LIKE ?
+        OR COALESCE(c.phone, '') LIKE ?
+    )"""]
+    params: list = [like, like, like]
+
+    if status:
+        conditions.append("c.status = ?")
+        params.append(status)
+
+    if source:
+        conditions.append("COALESCE(c.source, 'web') = ?")
+        params.append(source)
+
+    return db.execute(f"""
+        SELECT
+            c.id,
+            c.full_name,
+            c.email,
+            c.phone,
+            c.status,
+            COALESCE(c.source, 'web') AS source,
+            c.created_at,
+            COUNT(DISTINCT a.id) AS appointments_count,
+            MAX(a.created_at) AS last_appointment
+        FROM customers c
+        LEFT JOIN appointments a ON a.customer_id = c.id
+        WHERE {" AND ".join(conditions)}
+        GROUP BY c.id
+        ORDER BY c.created_at DESC, c.id DESC
+    """, params).fetchall()
+
+
+def validate_customer_filters(status: str, source: str):
+    if status and status not in CUSTOMER_STATUSES:
+        raise HTTPException(
+            status_code=400,
+            detail="Estado de cliente inválido."
+        )
+
+    if source and source not in CUSTOMER_SOURCES:
+        raise HTTPException(
+            status_code=400,
+            detail="Origen de cliente inválido."
+        )
+
+
 @app.get("/api/admin/customers")
 async def crm_get_customers(
     request: Request,
-    search: str = Query(default="", max_length=100)
+    search: str = Query(default="", max_length=100),
+    status: str = Query(default="", max_length=20),
+    source: str = Query(default="", max_length=20)
 ):
-    if not get_current_admin(request):
-        raise HTTPException(
-            status_code=401,
-            detail="Sesión administrativa requerida."
-        )
-
-    search = search.strip()
+    require_admin(request)
+    validate_customer_filters(status, source)
 
     with get_db() as db:
-        customers = db.execute("""
-            SELECT
-                c.id,
-                c.full_name,
-                c.email,
-                c.phone,
-                c.status,
-                c.created_at,
-                COUNT(DISTINCT a.id) AS appointments_count,
-                MAX(a.created_at) AS last_appointment
-            FROM customers c
-            LEFT JOIN appointments a ON a.customer_id = c.id
-            WHERE c.full_name LIKE ?
-               OR COALESCE(c.email, '') LIKE ?
-               OR COALESCE(c.phone, '') LIKE ?
-            GROUP BY c.id
-            ORDER BY c.created_at DESC
-        """, (f"%{search}%", f"%{search}%", f"%{search}%")).fetchall()
+        customers = query_customers(db, search, status, source)
 
     return {
         "success": True,
@@ -1203,7 +1252,7 @@ async def crm_update_customer(
 
     if len(full_name) < 2:
         raise HTTPException(status_code=400, detail="Ingresa un nombre válido.")
-    if data.status not in {"active", "inactive"}:
+    if data.status not in CUSTOMER_STATUSES:
         raise HTTPException(status_code=400, detail="Estado de cliente inválido.")
     if email and "@" not in email:
         raise HTTPException(status_code=400, detail="El correo electrónico no es válido.")
@@ -2562,133 +2611,330 @@ def normalize_chat(text: str) -> str:
     )
 
 
-@app.post("/api/chat")
-async def chatbot_reply(data: ChatRequest):
-    message = normalize_chat(data.message.strip())
-    action = None
-    options = [
-        "Servicios y precios",
-        "Reservar cita",
-        "Consultar mi cita",
-        "Cancelar mi cita"
+# Datos ficticios del negocio que usa el chatbot.
+BUSINESS_INFO = {
+    "address": (
+        "Av. Demostración 123, Centro, "
+        "San Francisco de Campeche, Camp. (dirección ficticia)"
+    ),
+    "phone": "981 000 0000 (número ficticio)",
+    "email": "contacto@medibot360.example",
+    "hours": "lunes a sábado de 9:00 a 18:00 (domingos cerrado)"
+}
+
+CHAT_BASE_OPTIONS = [
+    "Servicios y precios",
+    "Reservar cita",
+    "Horarios disponibles",
+    "Consultar mi cita",
+    "Cancelar mi cita",
+    "Ubicación y contacto"
+]
+
+CHAT_SERVICE_OPTIONS = [
+    "Reservar cita",
+    "Horarios disponibles",
+    "Equipo médico",
+    "Servicios y precios"
+]
+
+WEEKDAYS_ES = (
+    "lunes", "martes", "miércoles", "jueves",
+    "viernes", "sábado", "domingo"
+)
+
+
+def chat_has(message: str, words) -> bool:
+    return any(word in message for word in words)
+
+
+def chat_mentioned_specialties(db, message: str):
+    specialties = db.execute("""
+        SELECT id, name, price
+        FROM specialties
+        WHERE active = 1
+        ORDER BY name
+    """).fetchall()
+
+    selected = [
+        item for item in specialties
+        if normalize_chat(item["name"]) in message
     ]
 
-    if any(word in message for word in (
-        "emergencia",
-        "urgencia",
-        "dolor de pecho",
-        "no puedo respirar",
-        "falta de aire",
-        "convulsion",
-        "hemorragia",
-        "desmayo"
+    return specialties, selected
+
+
+def chat_next_slots(db, specialty_ids, limit: int = 5):
+    today = date.today()
+
+    sql = """
+        SELECT
+            s.appointment_date,
+            s.start_time,
+            p.full_name AS professional_name,
+            sp.name AS specialty_name
+        FROM schedules s
+        JOIN professionals p ON p.id = s.professional_id
+        JOIN specialties sp ON sp.id = p.specialty_id
+        WHERE s.status = 'available'
+          AND p.active = 1
+          AND sp.active = 1
+          AND s.appointment_date > ?
+          AND s.appointment_date <= ?
+          AND NOT EXISTS (
+              SELECT 1
+              FROM schedule_day_settings d
+              WHERE d.professional_id = s.professional_id
+                AND d.appointment_date = s.appointment_date
+                AND d.is_closed = 1
+          )
+    """
+    params: list = [
+        today.isoformat(),
+        (today + timedelta(days=14)).isoformat()
+    ]
+
+    if specialty_ids:
+        sql += " AND sp.id IN (%s)" % ",".join("?" * len(specialty_ids))
+        params.extend(specialty_ids)
+
+    sql += " ORDER BY s.appointment_date, s.start_time, p.full_name LIMIT ?"
+    params.append(limit)
+
+    return db.execute(sql, params).fetchall()
+
+
+def chat_format_day(value: str) -> str:
+    day = date.fromisoformat(value)
+    return f"{WEEKDAYS_ES[day.weekday()]} {day.strftime('%d/%m')}"
+
+
+def chat_team_reply(db, selected_ids):
+    sql = """
+        SELECT p.full_name, sp.name AS specialty_name
+        FROM professionals p
+        JOIN specialties sp ON sp.id = p.specialty_id
+        WHERE p.active = 1 AND sp.active = 1
+    """
+
+    if selected_ids:
+        sql += " AND sp.id IN (%s)" % ",".join("?" * len(selected_ids))
+
+    sql += " ORDER BY sp.name, p.full_name"
+    rows = db.execute(sql, selected_ids).fetchall()
+
+    if not rows:
+        return "Por ahora no hay profesionales disponibles."
+
+    return "Equipo de demostración:\n" + "\n".join(
+        f"• {row['full_name']} · {row['specialty_name']}"
+        for row in rows
+    )
+
+
+def chat_slots_reply(db, selected, selected_ids):
+    slots = chat_next_slots(db, selected_ids)
+
+    if not slots:
+        return (
+            "No encontré turnos libres en los próximos "
+            "14 días. Prueba con otra especialidad o "
+            "revisa más tarde."
+        )
+
+    scope = (
+        " de " + ", ".join(item["name"] for item in selected)
+        if selected else ""
+    )
+
+    lines = "\n".join(
+        f"• {chat_format_day(row['appointment_date'])} "
+        f"{row['start_time']} · {row['professional_name']} "
+        f"({row['specialty_name']})"
+        for row in slots
+    )
+
+    return (
+        f"Próximos turnos libres{scope}:\n{lines}\n"
+        "Puedes reservar con el botón 'Reservar cita'."
+    )
+
+
+def build_chat_reply(message: str):
+    """Devuelve (intención, respuesta, acción, opciones)."""
+    options = CHAT_BASE_OPTIONS
+
+    if chat_has(message, (
+        "emergencia", "urgencia", "dolor de pecho",
+        "no puedo respirar", "falta de aire",
+        "convulsion", "hemorragia", "desmayo"
     )):
-        reply = (
+        return (
+            "emergencia",
             "Si se trata de una emergencia, llama al "
             "911 en México o acude a urgencias. "
-            "Este asistente no realiza diagnósticos."
+            "Este asistente no realiza diagnósticos.",
+            None,
+            options
         )
-    elif any(word in message for word in (
-        "cancelar", "anular", "cancelacion"
-    )):
-        reply = (
+
+    if chat_has(message, ("cancelar", "anular", "cancelacion")):
+        return (
+            "cancelar",
             "Para cancelar una cita, verifica tu folio, "
-            "correo y teléfono de registro."
+            "correo y teléfono de registro.",
+            "cancel",
+            options
         )
-        action = "cancel"
-    elif any(word in message for word in (
-        "consultar mi cita",
-        "consultar cita",
-        "consultar reservacion",
-        "consultar folio",
-        "mi folio",
-        "mi cita",
-        "buscar folio",
-        "ver cita"
+
+    if chat_has(message, (
+        "consultar mi cita", "consultar cita",
+        "consultar reservacion", "consultar folio",
+        "mi folio", "mi cita", "buscar folio", "ver cita"
     )):
-        reply = (
+        return (
+            "consultar",
             "Para consultar tu cita, verifica tu folio, "
-            "correo y teléfono de registro."
+            "correo y teléfono de registro.",
+            "lookup",
+            options
         )
-        action = "lookup"
-    elif any(word in message for word in (
-        "reservar",
-        "agendar",
-        "apartar",
-        "sacar cita",
-        "solicitar cita"
+
+    if chat_has(message, (
+        "reservar", "agendar", "apartar",
+        "sacar cita", "solicitar cita"
     )):
-        reply = (
+        return (
+            "reservar",
             "Puedes reservar aquí mismo. Elige "
-            "especialidad, profesional, fecha y horario."
+            "especialidad, profesional, fecha y horario.",
+            "booking",
+            options
         )
-        action = "booking"
-    elif any(word in message for word in (
-        "horario",
-        "disponibilidad",
-        "cuando atienden"
+
+    if chat_has(message, (
+        "gracias", "adios", "hasta luego", "bye", "nos vemos"
     )):
-        reply = (
-            "Los horarios dependen del profesional "
-            "y del día. Para ver los turnos libres, "
-            "abre Reservar cita y selecciona una fecha."
+        return (
+            "despedida",
+            "Con gusto. Si necesitas algo más, aquí estaré. "
+            "¡Que tengas un excelente día!",
+            None,
+            options
         )
-    else:
-        with get_db() as db:
-            services = db.execute("""
-                SELECT name, price
-                FROM specialties
-                WHERE active = 1
-                ORDER BY name
-            """).fetchall()
 
-        selected = [
-            service for service in services
-            if normalize_chat(service["name"]) in message
-        ]
+    if chat_has(message, (
+        "humano", "recepcion", "asesor", "persona real",
+        "hablar con alguien", "telefono", "contacto",
+        "llamar", "whatsapp", "ubicacion", "direccion",
+        "donde estan", "donde se encuentran",
+        "como llegar", "domicilio"
+    )):
+        return (
+            "contacto",
+            "Datos de contacto de demostración:\n"
+            f"• Dirección: {BUSINESS_INFO['address']}\n"
+            f"• Teléfono: {BUSINESS_INFO['phone']}\n"
+            f"• Correo: {BUSINESS_INFO['email']}\n"
+            f"• Atención: {BUSINESS_INFO['hours']}\n"
+            "También puedes escribirnos desde el formulario de "
+            "contacto del sitio. En este prototipo no hay un "
+            "agente humano conectado.",
+            None,
+            options
+        )
 
-        if any(word in message for word in (
-            "precio",
-            "costo",
-            "cuanto",
-            "especialidad",
-            "servicio",
-            "cardiologia",
-            "dermatologia",
-            "pediatria",
-            "nutricion",
-            "psicologia",
+    with get_db() as db:
+        specialties, selected = chat_mentioned_specialties(db, message)
+        selected_ids = [item["id"] for item in selected]
+
+        if chat_has(message, (
+            "profesional", "doctor", "doctora", "medico",
+            "quien atiende", "especialista", "equipo"
+        )):
+            return (
+                "equipo",
+                chat_team_reply(db, selected_ids),
+                None,
+                CHAT_SERVICE_OPTIONS
+            )
+
+        if chat_has(message, (
+            "horario", "disponibilidad", "cuando atienden",
+            "proximos turnos", "turno", "hay cita"
+        )):
+            if "atencion" in message and not selected_ids:
+                reply = (
+                    f"Atendemos {BUSINESS_INFO['hours']}. "
+                    "Los turnos libres dependen del profesional; "
+                    "pregúntame por 'horarios disponibles'."
+                )
+            else:
+                reply = chat_slots_reply(db, selected, selected_ids)
+
+            return "horarios", reply, None, CHAT_SERVICE_OPTIONS
+
+        if chat_has(message, (
+            "precio", "costo", "cuanto", "especialidad",
+            "servicio", "cardiologia", "dermatologia",
+            "pediatria", "nutricion", "psicologia",
             "medicina general"
         )):
-            show = selected or services
-            reply = (
+            show = selected or specialties
+            return (
+                "precios",
                 "Servicios de demostración (MXN):\n"
                 + "\n".join(
-                    f"• {service['name']}: "
-                    f"${float(service['price']):,.2f}"
-                    for service in show
-                )
+                    f"• {item['name']}: ${float(item['price']):,.2f}"
+                    for item in show
+                ),
+                None,
+                CHAT_SERVICE_OPTIONS
             )
-        elif any(word in message for word in (
-            "hola", "buenas", "ayuda", "menu"
-        )):
-            reply = (
-                "Hola, soy el asistente de MediBot 360. "
-                "Puedo mostrar servicios y precios, "
-                "agendar o consultar y cancelar citas."
-            )
-        else:
-            reply = (
-                "Puedo ayudarte con servicios, precios, "
-                "horarios y reservaciones. "
-                "Elige una opción para continuar."
-            )
+
+    if chat_has(message, ("hola", "buenas", "ayuda", "menu")):
+        return (
+            "saludo",
+            "Hola, soy el asistente de MediBot 360. "
+            "Puedo mostrar servicios y precios, horarios libres, "
+            "el equipo médico, y agendar o consultar y cancelar citas.",
+            None,
+            options
+        )
+
+    return (
+        "no_entendido",
+        "Puedo ayudarte con servicios, precios, "
+        "horarios y reservaciones. "
+        "Elige una opción para continuar.",
+        None,
+        options
+    )
+
+
+@app.post("/api/chat")
+async def chatbot_reply(data: ChatRequest, request: Request):
+    check_rate_limit(request, "chat_message", maximum=120)
+
+    original = data.message.strip()
+    intent, reply, action, options = build_chat_reply(
+        normalize_chat(original)
+    )
+
+    # Cada conversación queda registrada para el CRM (sin datos personales).
+    with get_db() as db:
+        db.execute("""
+            INSERT INTO interactions
+                (customer_id, message, response, channel, intent)
+            VALUES (NULL, ?, ?, 'chatbot', ?)
+        """, (original[:500], reply[:1000], intent))
 
     return {
         "success": True,
         "reply": reply,
         "action": action,
-        "options": options
+        "options": options,
+        "intent": intent
     }
 
 
@@ -3264,5 +3510,464 @@ async def admin_overview_alerts(request: Request):
             "low_stock": len(low_stock),
             "unpaid": unpaid
         },
+        "low_stock_threshold": LOW_STOCK_THRESHOLD
+    }
+
+
+# =============================================
+# ETAPA 12 - CRM (PROSPECTOS) Y ERP (REPORTES)
+# =============================================
+
+EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+STATUS_LABELS = {
+    "lead": "Prospecto",
+    "active": "Activo",
+    "inactive": "Inactivo",
+    "confirmed": "Confirmada",
+    "cancelled": "Cancelada",
+    "unpaid": "Sin pago",
+    "pending": "Sin pago",
+    "paid": "Pagado",
+    "refunded": "Reembolsado",
+    "available": "Disponible",
+    "unavailable": "No disponible"
+}
+
+SOURCE_LABELS = {
+    "web": "Sitio web",
+    "chatbot": "Chatbot",
+    "contacto": "Formulario de contacto",
+    "admin": "Administración"
+}
+
+
+class ContactRequest(BaseModel):
+    full_name: str = Field(min_length=3, max_length=150)
+    email: str = Field(min_length=5, max_length=150)
+    phone: str | None = Field(default=None, max_length=20)
+    message: str = Field(min_length=5, max_length=1000)
+
+
+@app.post("/api/contact", status_code=201)
+async def public_contact(data: ContactRequest, request: Request):
+    """Formulario público: crea un prospecto en el CRM."""
+    check_rate_limit(request, "contact_form", maximum=5)
+
+    full_name = " ".join(data.full_name.split())
+    email = data.email.strip().lower()
+    phone = data.phone.strip() if data.phone and data.phone.strip() else None
+    message = data.message.strip()
+
+    if len(full_name) < 3:
+        raise HTTPException(
+            status_code=400,
+            detail="Ingresa un nombre válido."
+        )
+
+    if not EMAIL_PATTERN.match(email):
+        raise HTTPException(
+            status_code=400,
+            detail="El correo electrónico no es válido."
+        )
+
+    if len(message) < 5:
+        raise HTTPException(
+            status_code=400,
+            detail="Escribe un mensaje un poco más largo."
+        )
+
+    with get_db() as db:
+        db.execute("BEGIN IMMEDIATE")
+
+        customer = db.execute("""
+            SELECT id
+            FROM customers
+            WHERE email = ?
+        """, (email,)).fetchone()
+
+        if customer is None:
+            cursor = db.execute("""
+                INSERT INTO customers
+                    (full_name, email, phone, status, source)
+                VALUES (?, ?, ?, 'lead', 'contacto')
+            """, (full_name, email, phone))
+            customer_id = cursor.lastrowid
+        else:
+            customer_id = customer["id"]
+
+            if phone:
+                db.execute("""
+                    UPDATE customers
+                    SET phone = COALESCE(phone, ?)
+                    WHERE id = ?
+                """, (phone, customer_id))
+
+        db.execute("""
+            INSERT INTO interactions
+                (customer_id, message, response, channel, intent)
+            VALUES (?, ?, ?, 'contacto', 'contacto')
+        """, (
+            customer_id,
+            message,
+            "Solicitud de contacto recibida desde el sitio web"
+        ))
+
+    # Misma respuesta exista o no el correo: no revela clientes.
+    return {
+        "success": True,
+        "message": (
+            "Gracias por escribirnos. Recibimos tu mensaje "
+            "y el equipo de recepción dará seguimiento."
+        )
+    }
+
+
+# ---------- Exportación CSV ----------
+
+def csv_safe(value):
+    """Evita que una hoja de cálculo interprete texto como fórmula."""
+    if value is None:
+        return ""
+
+    if isinstance(value, (int, float)):
+        return value
+
+    text = str(value)
+
+    if text[:1] in ("=", "+", "-", "@", "\t", "\r"):
+        return "'" + text
+
+    return text
+
+
+def csv_response(filename: str, headers: list, rows) -> Response:
+    buffer = io.StringIO()
+    writer = csv.writer(buffer, lineterminator="\r\n")
+    writer.writerow(headers)
+
+    for row in rows:
+        writer.writerow([csv_safe(value) for value in row])
+
+    return Response(
+        content="﻿" + buffer.getvalue(),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"'
+        }
+    )
+
+
+def label(mapping: dict, value):
+    return mapping.get(value, value)
+
+
+@app.get("/api/admin/export/{kind}.csv")
+async def admin_export_csv(
+    kind: str,
+    request: Request,
+    search: str = Query(default="", max_length=100),
+    status: str = Query(default="", max_length=20),
+    source: str = Query(default="", max_length=20)
+):
+    require_admin(request)
+    stamp = date.today().isoformat()
+
+    with get_db() as db:
+        if kind == "customers":
+            validate_customer_filters(status, source)
+            rows = query_customers(db, search, status, source)
+
+            return csv_response(
+                f"medibot-clientes-{stamp}.csv",
+                [
+                    "ID", "Nombre", "Correo", "Teléfono", "Estado",
+                    "Origen", "Citas", "Registro"
+                ],
+                [
+                    (
+                        r["id"], r["full_name"], r["email"], r["phone"],
+                        label(STATUS_LABELS, r["status"]),
+                        label(SOURCE_LABELS, r["source"]),
+                        r["appointments_count"], r["created_at"]
+                    )
+                    for r in rows
+                ]
+            )
+
+        if kind == "appointments":
+            rows = db.execute("""
+                SELECT
+                    a.folio, c.full_name AS customer, sp.name AS specialty,
+                    p.full_name AS professional, s.appointment_date,
+                    s.start_time, s.end_time, a.status, a.agreed_price
+                FROM appointments a
+                JOIN customers c ON c.id = a.customer_id
+                JOIN professionals p ON p.id = a.professional_id
+                JOIN specialties sp ON sp.id = p.specialty_id
+                JOIN schedules s ON s.id = a.schedule_id
+                ORDER BY s.appointment_date, s.start_time, a.id
+            """).fetchall()
+
+            return csv_response(
+                f"medibot-citas-{stamp}.csv",
+                [
+                    "Folio", "Cliente", "Especialidad", "Profesional",
+                    "Fecha", "Inicio", "Fin", "Estado", "Precio acordado"
+                ],
+                [
+                    (
+                        r["folio"], r["customer"], r["specialty"],
+                        r["professional"], r["appointment_date"],
+                        r["start_time"], r["end_time"],
+                        label(STATUS_LABELS, r["status"]),
+                        r["agreed_price"]
+                    )
+                    for r in rows
+                ]
+            )
+
+        if kind == "finance":
+            rows = db.execute("""
+                SELECT
+                    a.folio, c.full_name AS customer, sp.name AS specialty,
+                    s.appointment_date, a.status AS appointment_status,
+                    a.agreed_price,
+                    COALESCE(p.status, 'unpaid') AS payment_status,
+                    p.amount, p.payment_date
+                FROM appointments a
+                JOIN customers c ON c.id = a.customer_id
+                JOIN professionals pr ON pr.id = a.professional_id
+                JOIN specialties sp ON sp.id = pr.specialty_id
+                JOIN schedules s ON s.id = a.schedule_id
+                LEFT JOIN payments p ON p.id = (
+                    SELECT p2.id FROM payments p2
+                    WHERE p2.appointment_id = a.id
+                    ORDER BY p2.id DESC LIMIT 1
+                )
+                ORDER BY a.id DESC
+            """).fetchall()
+
+            return csv_response(
+                f"medibot-finanzas-{stamp}.csv",
+                [
+                    "Folio", "Cliente", "Especialidad", "Fecha de cita",
+                    "Estado de cita", "Precio acordado", "Estado de pago",
+                    "Importe pagado", "Fecha de pago"
+                ],
+                [
+                    (
+                        r["folio"], r["customer"], r["specialty"],
+                        r["appointment_date"],
+                        label(STATUS_LABELS, r["appointment_status"]),
+                        r["agreed_price"],
+                        label(STATUS_LABELS, r["payment_status"]),
+                        r["amount"], r["payment_date"]
+                    )
+                    for r in rows
+                ]
+            )
+
+        if kind == "inventory":
+            rows = db.execute("""
+                SELECT id, name, description, quantity, status
+                FROM resources
+                ORDER BY name, id
+            """).fetchall()
+
+            return csv_response(
+                f"medibot-inventario-{stamp}.csv",
+                [
+                    "ID", "Recurso", "Descripción", "Existencias",
+                    "Estado", "Existencias bajas"
+                ],
+                [
+                    (
+                        r["id"], r["name"], r["description"],
+                        r["quantity"], label(STATUS_LABELS, r["status"]),
+                        "Sí" if r["quantity"] <= LOW_STOCK_THRESHOLD else "No"
+                    )
+                    for r in rows
+                ]
+            )
+
+    raise HTTPException(
+        status_code=404,
+        detail="Reporte no disponible."
+    )
+
+
+# ---------- Reportes del ERP ----------
+
+@app.get("/admin/reportes")
+async def admin_reports_page(request: Request):
+    admin = get_current_admin(request)
+
+    if not admin:
+        return RedirectResponse("/admin/login", status_code=303)
+
+    return templates.TemplateResponse(
+        request=request,
+        name="admin_reports.html",
+        context={
+            "title": "Análisis y reportes | MediBot 360",
+            "admin": admin
+        }
+    )
+
+
+@app.get("/api/admin/reports")
+async def admin_reports(
+    request: Request,
+    days: int = Query(default=30)
+):
+    require_admin(request)
+
+    if days not in (7, 30, 90):
+        raise HTTPException(
+            status_code=400,
+            detail="Selecciona 7, 30 o 90 días."
+        )
+
+    today = date.today()
+    start = (today - timedelta(days=days - 1)).isoformat()
+    end = today.isoformat()
+    period = (start, end)
+
+    with get_db() as db:
+        appointments = db.execute("""
+            SELECT
+                COUNT(*) AS total,
+                COALESCE(SUM(status = 'confirmed'), 0) AS confirmed,
+                COALESCE(SUM(status = 'cancelled'), 0) AS cancelled
+            FROM appointments
+            WHERE substr(created_at, 1, 10) BETWEEN ? AND ?
+        """, period).fetchone()
+
+        paid = db.execute("""
+            SELECT COALESCE(SUM(amount), 0) AS total
+            FROM payments
+            WHERE status = 'paid'
+              AND substr(payment_date, 1, 10) BETWEEN ? AND ?
+        """, period).fetchone()["total"]
+
+        refunded = db.execute("""
+            SELECT COALESCE(SUM(amount), 0) AS total
+            FROM payments
+            WHERE status = 'refunded'
+              AND substr(COALESCE(refunded_at, payment_date), 1, 10)
+                  BETWEEN ? AND ?
+        """, period).fetchone()["total"]
+
+        receivable = db.execute("""
+            SELECT COALESCE(SUM(a.agreed_price), 0) AS total
+            FROM appointments a
+            WHERE a.status = 'confirmed'
+              AND COALESCE((
+                  SELECT p.status FROM payments p
+                  WHERE p.appointment_id = a.id
+                  ORDER BY p.id DESC LIMIT 1
+              ), 'unpaid') <> 'paid'
+        """).fetchone()["total"]
+
+        new_customers = db.execute("""
+            SELECT COUNT(*) AS total
+            FROM customers
+            WHERE substr(created_at, 1, 10) BETWEEN ? AND ?
+        """, period).fetchone()["total"]
+
+        by_status = db.execute("""
+            SELECT status, COUNT(*) AS total
+            FROM customers
+            GROUP BY status
+        """).fetchall()
+
+        by_source = db.execute("""
+            SELECT COALESCE(source, 'web') AS source, COUNT(*) AS total
+            FROM customers
+            WHERE substr(created_at, 1, 10) BETWEEN ? AND ?
+            GROUP BY COALESCE(source, 'web')
+            ORDER BY total DESC
+        """, period).fetchall()
+
+        chat_messages = db.execute("""
+            SELECT COUNT(*) AS total
+            FROM interactions
+            WHERE channel = 'chatbot'
+              AND intent IS NOT NULL
+              AND substr(created_at, 1, 10) BETWEEN ? AND ?
+        """, period).fetchone()["total"]
+
+        contact_requests = db.execute("""
+            SELECT COUNT(*) AS total
+            FROM interactions
+            WHERE channel = 'contacto'
+              AND substr(created_at, 1, 10) BETWEEN ? AND ?
+        """, period).fetchone()["total"]
+
+        intents = db.execute("""
+            SELECT intent, COUNT(*) AS total
+            FROM interactions
+            WHERE channel = 'chatbot'
+              AND intent IS NOT NULL
+              AND substr(created_at, 1, 10) BETWEEN ? AND ?
+            GROUP BY intent
+            ORDER BY total DESC, intent
+            LIMIT 8
+        """, period).fetchall()
+
+        specialties = db.execute("""
+            SELECT
+                sp.name,
+                COALESCE(SUM(a.status = 'confirmed'), 0) AS confirmed,
+                COALESCE(SUM(a.status = 'cancelled'), 0) AS cancelled,
+                COALESCE((
+                    SELECT SUM(p.amount)
+                    FROM payments p
+                    JOIN appointments a2 ON a2.id = p.appointment_id
+                    JOIN professionals pr2
+                        ON pr2.id = a2.professional_id
+                    WHERE pr2.specialty_id = sp.id
+                      AND p.status = 'paid'
+                      AND substr(p.payment_date, 1, 10)
+                          BETWEEN ? AND ?
+                ), 0) AS revenue
+            FROM specialties sp
+            LEFT JOIN professionals pr ON pr.specialty_id = sp.id
+            LEFT JOIN appointments a
+                ON a.professional_id = pr.id
+               AND substr(a.created_at, 1, 10) BETWEEN ? AND ?
+            GROUP BY sp.id
+            ORDER BY confirmed DESC, sp.name
+        """, period + period).fetchall()
+
+        inventory = db.execute("""
+            SELECT id, name, quantity, status
+            FROM resources
+            ORDER BY quantity, name
+        """).fetchall()
+
+    return {
+        "success": True,
+        "period": {"days": days, "start": start, "end": end},
+        "kpis": {
+            "appointments": appointments["total"],
+            "confirmed": appointments["confirmed"],
+            "cancelled": appointments["cancelled"],
+            "revenue_paid": round(float(paid), 2),
+            "revenue_refunded": round(float(refunded), 2),
+            "receivable": round(float(receivable), 2),
+            "new_customers": new_customers,
+            "chat_messages": chat_messages,
+            "contact_requests": contact_requests
+        },
+        "customers_by_status": [dict(r) for r in by_status],
+        "customers_by_source": [dict(r) for r in by_source],
+        "chatbot_intents": [dict(r) for r in intents],
+        "specialties": [dict(r) for r in specialties],
+        "inventory": [
+            {**dict(r), "low": r["quantity"] <= LOW_STOCK_THRESHOLD}
+            for r in inventory
+        ],
         "low_stock_threshold": LOW_STOCK_THRESHOLD
     }

@@ -1123,3 +1123,428 @@ body:not(.dashboard-page):not(.login-page) .service-button {
     background: #4168f5;
     border-radius: 11px;
 }
+
+/* =============================================
+   MEDIBOT 360 - ETAPA 12
+   CRM, reportes del ERP y portal público
+============================================= */
+
+/* CRM: filtros, origen, prospectos */
+
+.crm-filters {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 0 0 16px;
+}
+
+.crm-filters select {
+    min-height: 40px;
+    padding: 8px 12px;
+    border: 1px solid #e0e8f5;
+    border-radius: 11px;
+    background: #f7faff;
+    color: #31436a;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.crm-export {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+    margin-left: auto;
+    padding: 8px 14px;
+    border-radius: 11px;
+    background: #eaf2ff;
+    color: #2e55cf;
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.crm-export:hover {
+    background: #dce9ff;
+}
+
+.crm-status.lead,
+.customer-status.lead {
+    background: #fff4e0;
+    color: #a86a0c;
+}
+
+.crm-source {
+    display: inline-block;
+    padding: 5px 9px;
+    border-radius: 8px;
+    background: #f0f4fc;
+    color: #4a5d82;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+/* REPORTES */
+
+.mb-report-toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 24px 0 18px;
+    padding: 14px 18px;
+    border: 1px solid #e7ecf5;
+    border-radius: 16px;
+    background: #fff;
+    font-size: 12px;
+    color: #51627d;
+}
+
+.mb-report-toolbar select {
+    min-height: 38px;
+    padding: 6px 12px;
+    border: 1px solid #e0e8f5;
+    border-radius: 10px;
+    background: #f7faff;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.mb-report-exports {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-left: auto;
+}
+
+.mb-report-exports a {
+    padding: 9px 13px;
+    border-radius: 10px;
+    background: #eaf2ff;
+    color: #2e55cf;
+    font-size: 11px;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.mb-report-exports a:hover {
+    background: #dce9ff;
+}
+
+.mb-report-kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 14px;
+    margin-bottom: 18px;
+}
+
+.mb-report-kpi {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 18px;
+    border: 1px solid #e6ebf4;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 10px 32px rgba(26, 45, 83, .045);
+}
+
+.mb-report-kpi span {
+    color: #72839c;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.mb-report-kpi strong {
+    color: #203869;
+    font-size: 24px;
+    letter-spacing: -.5px;
+}
+
+.mb-report-kpi small {
+    color: #98a5b9;
+    font-size: 10px;
+}
+
+.mb-report-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.mb-report-card {
+    min-width: 0;
+    padding: 22px;
+    border: 1px solid #e7ecf5;
+    border-radius: 20px;
+    background: #fff;
+    box-shadow: 0 10px 35px rgba(29, 51, 97, .038);
+}
+
+.mb-report-card h3 {
+    margin: 0 0 4px;
+    font-size: 16px;
+    color: #17243c;
+}
+
+.mb-report-card > p {
+    margin: 0 0 14px;
+    color: #8193ae;
+    font-size: 11px;
+}
+
+.mb-report-wide {
+    grid-column: 1 / -1;
+}
+
+.mb-chart-box {
+    position: relative;
+    height: 260px;
+}
+
+.mb-spaced {
+    margin-top: 14px;
+}
+
+.mb-low-stock {
+    display: inline-block;
+    padding: 4px 9px;
+    border-radius: 20px;
+    background: #fff4e0;
+    color: #a86a0c;
+    font-size: 10px;
+    font-weight: 750;
+}
+
+@media (max-width: 940px) {
+    .mb-report-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .mb-report-exports,
+    .crm-export {
+        margin-left: 0;
+    }
+}
+
+/* PORTAL: servicios, proceso y contacto */
+
+.service-team {
+    display: block;
+    margin: 4px 0 10px;
+    color: #6f7f9b;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.how-it-works,
+.contact {
+    padding: 70px max(24px, 7vw);
+    text-align: center;
+}
+
+.how-it-works h2,
+.contact h2 {
+    margin: 10px 0 12px;
+    font-size: clamp(26px, 3.4vw, 38px);
+    color: #102044;
+}
+
+.steps-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 18px;
+    max-width: 960px;
+    margin: 34px auto 0;
+}
+
+.step-card {
+    padding: 26px 22px;
+    border: 1px solid #e5ebf6;
+    border-radius: 20px;
+    background: #fff;
+    box-shadow: 0 12px 36px rgba(24, 47, 91, .06);
+    text-align: left;
+}
+
+.step-number {
+    display: inline-grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    margin-bottom: 14px;
+    border-radius: 11px;
+    background: linear-gradient(135deg, #4168f5, #43d8e8);
+    color: #fff;
+    font-weight: 800;
+}
+
+.step-card h3 {
+    margin: 0 0 8px;
+    font-size: 16px;
+    color: #17243c;
+}
+
+.step-card p {
+    margin: 0;
+    color: #6f7f9b;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.contact {
+    background: linear-gradient(180deg, #f7faff, #fff);
+}
+
+.contact-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+    gap: 28px;
+    max-width: 960px;
+    margin: 34px auto 0;
+    text-align: left;
+}
+
+.contact-info {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin: 0;
+    padding: 26px;
+    border-radius: 20px;
+    background: #0f1d44;
+    list-style: none;
+    color: #fff;
+}
+
+.contact-info li {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.contact-info strong {
+    color: #83e7f2;
+    font-size: 11px;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+}
+
+.contact-info span {
+    font-size: 13px;
+    line-height: 1.5;
+    color: #dbe4fb;
+}
+
+.contact-form {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 26px;
+    border: 1px solid #e5ebf6;
+    border-radius: 20px;
+    background: #fff;
+    box-shadow: 0 12px 36px rgba(24, 47, 91, .06);
+}
+
+.contact-form label {
+    margin-top: 8px;
+    color: #3b4c6e;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.contact-form input,
+.contact-form textarea {
+    padding: 12px 14px;
+    border: 1px solid #dfe7f5;
+    border-radius: 11px;
+    font: inherit;
+    font-size: 14px;
+    resize: vertical;
+}
+
+.contact-form input:focus,
+.contact-form textarea:focus {
+    outline: none;
+    border-color: #4168f5;
+    box-shadow: 0 0 0 4px rgba(65, 104, 245, .10);
+}
+
+.contact-form .primary-button {
+    margin-top: 14px;
+    border: 0;
+    cursor: pointer;
+}
+
+.contact-form .primary-button:disabled {
+    opacity: .6;
+    cursor: wait;
+}
+
+.contact-form small {
+    margin-top: 6px;
+    color: #98a5b9;
+    font-size: 11px;
+}
+
+.contact-status {
+    min-height: 18px;
+    margin: 8px 0 0;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.contact-status.success {
+    color: #1f8a57;
+}
+
+.contact-status.error {
+    color: #c0392b;
+}
+
+.contact-status.info {
+    color: #5b6c8c;
+}
+
+.contact-info {
+    align-self: start;
+}
+
+/* CRM: la tabla de 7 columnas cabe en pantallas de escritorio. */
+.dashboard-page .crm-directory table {
+    min-width: 760px;
+}
+
+/* CRM: las tarjetas de resumen se ajustan al número de indicadores. */
+.dashboard-page .crm-stats {
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
+/* La barra fija no debe tapar los títulos al saltar a una sección. */
+.hero,
+.services,
+.how-it-works,
+.contact,
+.about {
+    scroll-margin-top: 96px;
+}
+
+/* Tablas de reportes: se adaptan al ancho de cada tarjeta. */
+.mb-report-card table {
+    min-width: 0;
+    table-layout: auto;
+}
+
+.mb-report-card th,
+.mb-report-card td {
+    padding: 10px 8px;
+}
+
+@media (max-width: 800px) {
+    .contact-layout {
+        grid-template-columns: 1fr;
+    }
+}

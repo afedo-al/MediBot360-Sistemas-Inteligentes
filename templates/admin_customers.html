@@ -6,8 +6,8 @@
     <title>{{ title }}</title>
     <link rel="stylesheet" href="/static/css/admin.css?v=7e4">
     <script src="/static/js/crm.js" defer></script>
-    <link rel="stylesheet" href="/static/css/medibot-next.css?v=11a">
-    <script src="/static/js/medibot-next.js?v=11a" defer></script>
+    <link rel="stylesheet" href="/static/css/medibot-next.css?v=12d">
+    <script src="/static/js/medibot-next.js?v=12a" defer></script>
 </head>
 <body class="dashboard-page">
     <aside class="admin-sidebar">
@@ -41,15 +41,21 @@
         </section>
         <section class="crm-stats">
             <article class="crm-stat-card"><span>Total de clientes</span><strong id="crm-total">0</strong><small>Registros disponibles</small></article>
+            <article class="crm-stat-card"><span>Prospectos</span><strong id="crm-leads">0</strong><small>Contacto web o chatbot</small></article>
             <article class="crm-stat-card"><span>Clientes activos</span><strong id="crm-active">0</strong><small>Estado activo</small></article>
             <article class="crm-stat-card"><span>Clientes inactivos</span><strong id="crm-inactive">0</strong><small>Estado inactivo</small></article>
         </section>
         <section class="crm-directory">
             <div class="crm-directory-header"><div><h2>Listado de clientes</h2><p>Información registrada en la base de datos.</p></div></div>
             <div class="crm-search"><span>⌕</span><input type="search" id="customer-search" placeholder="Buscar por nombre, correo o teléfono..."></div>
+            <div class="crm-filters">
+                <select id="customer-status-filter" aria-label="Filtrar por estado"><option value="">Todos los estados</option><option value="lead">Prospectos</option><option value="active">Activos</option><option value="inactive">Inactivos</option></select>
+                <select id="customer-source-filter" aria-label="Filtrar por origen"><option value="">Todos los orígenes</option><option value="web">Sitio web</option><option value="chatbot">Chatbot</option><option value="contacto">Formulario de contacto</option><option value="admin">Administración</option></select>
+                <a id="customer-export" class="crm-export" href="/api/admin/export/customers.csv" download>Exportar CSV</a>
+            </div>
             <div class="table-container">
-                <table><thead><tr><th>CLIENTE</th><th>CONTACTO</th><th>RESERVACIONES</th><th>REGISTRO</th><th>ESTADO</th><th>ACCIÓN</th></tr></thead>
-                    <tbody id="customers-table"><tr><td colspan="6" class="empty-table">Cargando clientes...</td></tr></tbody>
+                <table><thead><tr><th>CLIENTE</th><th>CONTACTO</th><th>ORIGEN</th><th>RESERVACIONES</th><th>REGISTRO</th><th>ESTADO</th><th>ACCIÓN</th></tr></thead>
+                    <tbody id="customers-table"><tr><td colspan="7" class="empty-table">Cargando clientes...</td></tr></tbody>
                 </table>
             </div>
             <div class="crm-table-footer" id="crm-results">Cargando registros...</div>

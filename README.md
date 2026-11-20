@@ -20,11 +20,34 @@ No realiza diagnósticos médicos ni procesa pagos reales.
 
 ## Módulos
 
-- Sitio público y reservaciones.
-- Chatbot basado en reglas.
-- CRM de clientes e interacciones.
-- ERP de horarios, pagos simulados y recursos.
-- Dashboard con indicadores y gráficas.
+| Módulo | Qué incluye | Dónde |
+|---|---|---|
+| Portal público (catálogo) | Servicios con precios y profesionales, proceso de reserva, formulario de contacto | `/sitio`, `/reservar` |
+| Chatbot | Reglas con 11 intenciones: servicios y precios, horarios libres y equipo (datos reales de la base), reservar, consultar y cancelar con verificación, contacto, emergencias y despedida | Widget en `/sitio` |
+| CRM | Clientes con estado (prospecto, activo, inactivo), origen (sitio web, chatbot, contacto, administración), filtros, historial de interacciones y exportación CSV | `/admin/clientes` |
+| ERP | Reservaciones, catálogo, horarios, pagos simulados con reembolso, inventario con movimientos, calendario, reportes y exportación CSV | `/admin/*` |
+| Reportes | Ingresos, citas por especialidad, captación de clientes, intenciones del chatbot e inventario | `/admin/reportes` |
+
+### Cómo se conectan
+
+1. El visitante conversa con el **chatbot** o llena el **formulario de contacto**.
+2. Cada conversación y cada mensaje de contacto se registran en el **CRM** (`interactions`); el formulario crea un prospecto.
+3. Al reservar, el prospecto pasa a cliente activo y la cita entra al **ERP** (agenda, calendario, cobro simulado y reportes).
+
+## Costo de las herramientas
+
+Todo el software es gratuito y de código abierto; no se usan servicios de pago.
+
+| Componente | Uso | Licencia |
+|---|---|---|
+| Python | Lenguaje del servidor | PSF (libre) |
+| FastAPI + Uvicorn | API y servidor web | MIT / BSD |
+| SQLite | Base de datos local | Dominio público |
+| Jinja2 | Plantillas HTML | BSD |
+| Chart.js | Gráficas | MIT |
+| pytest + HTTPX | Pruebas automáticas | MIT / BSD |
+
+Un despliegue en Internet sí podría generar gastos de alojamiento y dominio.
 
 ## Instalación
 

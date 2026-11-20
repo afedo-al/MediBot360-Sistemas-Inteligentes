@@ -21,12 +21,37 @@ function showFeedback(element, message, type) {
 async function initializeCustomerDirectory() {
     const table = document.getElementById("customers-table");
     const searchInput = document.getElementById("customer-search");
+    const statusFilter = document.getElementById("customer-status-filter");
+    const sourceFilter = document.getElementById("customer-source-filter");
+    const exportLink = document.getElementById("customer-export");
     if (!table || !searchInput) return;
 
-    async function loadCustomers(search = "") {
-        table.innerHTML = '<tr><td colspan="6" class="empty-table">Buscando clientes...</td></tr>';
+    const STATUS = {
+        lead: ["lead", "Prospecto"],
+        active: ["active", "Activo"],
+        inactive: ["inactive", "Inactivo"]
+    };
+    const SOURCE = {
+        web: "Sitio web",
+        chatbot: "Chatbot",
+        contacto: "Formulario de contacto",
+        admin: "Administración"
+    };
+
+    function buildQuery() {
+        const params = new URLSearchParams();
+        if (searchInput.value.trim()) params.set("search", searchInput.value.trim());
+        if (statusFilter && statusFilter.value) params.set("status", statusFilter.value);
+        if (sourceFilter && sourceFilter.value) params.set("source", sourceFilter.value);
+        return params.toString();
+    }
+
+    async function loadCustomers() {
+        const query = buildQuery();
+        if (exportLink) exportLink.href = "/api/admin/export/customers.csv" + (query ? "?" + query : "");
+        table.innerHTML = '<tr><td colspan="7" class="empty-table">Buscando clientes...</td></tr>';
         try {
-            const response = await fetch(`/api/admin/customers?search=${encodeURIComponent(search)}`);
+            const response = await fetch("/api/admin/customers" + (query ? "?" + query : ""));
             if (response.status === 401) {
                 window.location.replace("/admin/login");
                 return;
@@ -37,24 +62,25 @@ async function initializeCustomerDirectory() {
             renderCustomers(customers);
             updateCustomerStatistics(customers);
         } catch (error) {
-            table.innerHTML = `<tr><td colspan="6" class="empty-table">${escapeHTML(error.message)}</td></tr>`;
+            table.innerHTML = `<tr><td colspan="7" class="empty-table">${escapeHTML(error.message)}</td></tr>`;
         }
     }
 
     function renderCustomers(customers) {
         const results = document.getElementById("crm-results");
         if (!customers.length) {
-            table.innerHTML = '<tr><td colspan="6" class="empty-table">No se encontraron clientes.</td></tr>';
+            table.innerHTML = '<tr><td colspan="7" class="empty-table">No se encontraron clientes.</td></tr>';
             results.textContent = "0 clientes encontrados";
             return;
         }
         table.innerHTML = customers.map(customer => {
-            const status = customer.status === "active";
+            const [cls, text] = STATUS[customer.status] || STATUS.inactive;
             return `<tr>
                 <td><div class="crm-customer-cell"><div class="crm-customer-avatar">${escapeHTML(customer.full_name.charAt(0).toUpperCase())}</div><div class="crm-customer-name"><strong>${escapeHTML(customer.full_name)}</strong><span>Cliente #${customer.id}</span></div></div></td>
                 <td><div class="crm-contact"><span>${escapeHTML(customer.email || "Sin correo")}</span><small>${escapeHTML(customer.phone || "Sin teléfono")}</small></div></td>
+                <td><span class="crm-source">${escapeHTML(SOURCE[customer.source] || customer.source)}</span></td>
                 <td>${customer.appointments_count}</td><td>${escapeHTML(customer.created_at)}</td>
-                <td><span class="crm-status ${status ? "active" : "inactive"}">${status ? "Activo" : "Inactivo"}</span></td>
+                <td><span class="crm-status ${cls}">${text}</span></td>
                 <td><a href="/admin/clientes/${customer.id}" class="crm-action-link">Ver perfil →</a></td>
             </tr>`;
         }).join("");
@@ -64,13 +90,18 @@ async function initializeCustomerDirectory() {
     function updateCustomerStatistics(customers) {
         document.getElementById("crm-total").textContent = customers.length;
         document.getElementById("crm-active").textContent = customers.filter(item => item.status === "active").length;
+        const leads = document.getElementById("crm-leads");
+        if (leads) leads.textContent = customers.filter(item => item.status === "lead").length;
         document.getElementById("crm-inactive").textContent = customers.filter(item => item.status === "inactive").length;
     }
 
     let searchTimeout;
     searchInput.addEventListener("input", () => {
         clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(() => loadCustomers(searchInput.value), 200);
+        searchTimeout = setTimeout(loadCustomers, 200);
+    });
+    [statusFilter, sourceFilter].forEach(select => {
+        if (select) select.addEventListener("change", loadCustomers);
     });
     await loadCustomers();
 }
@@ -101,7 +132,7 @@ function initializeCustomerProfile() {
                 document.querySelector(".customer-profile-identity h2").textContent = payload.full_name;
                 document.querySelector(".customer-large-avatar").textContent = payload.full_name.charAt(0).toUpperCase();
                 const badge = document.querySelector(".customer-status");
-                badge.textContent = payload.status === "active" ? "Activo" : "Inactivo";
+                badge.textContent = {active: "Activo", lead: "Prospecto"}[payload.status] || "Inactivo";
                 badge.className = `customer-status ${payload.status}`;
             } catch (error) {
                 showFeedback(feedback, error.message, "error");

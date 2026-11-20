@@ -6,8 +6,8 @@
     <title>{{ title }}</title>
     <link rel="stylesheet" href="/static/css/admin.css?v=7e4">
     <script src="/static/js/crm.js" defer></script>
-    <link rel="stylesheet" href="/static/css/medibot-next.css?v=11a">
-    <script src="/static/js/medibot-next.js?v=11a" defer></script>
+    <link rel="stylesheet" href="/static/css/medibot-next.css?v=12d">
+    <script src="/static/js/medibot-next.js?v=12a" defer></script>
 </head>
 <body class="dashboard-page">
     <aside class="admin-sidebar">
@@ -31,7 +31,7 @@
         <header class="admin-topbar"><div><span class="breadcrumb">MEDIBOT 360 / CRM / PERFIL</span><h1>Perfil del cliente</h1></div><a href="/admin/clientes" class="visit-site">← Volver a clientes</a></header>
         <section class="customer-profile-header">
             <div class="customer-profile-identity"><div class="customer-large-avatar">{{ customer.full_name[0]|upper }}</div><div><span class="welcome-label">CLIENTE #{{ customer.id }}</span><h2>{{ customer.full_name }}</h2><p>Registrado el {{ customer.created_at }}</p></div></div>
-            <span class="customer-status {{ customer.status }}">{{ "Activo" if customer.status == "active" else "Inactivo" }}</span>
+            <span class="customer-status {{ customer.status }}">{{ {"active": "Activo", "lead": "Prospecto"}.get(customer.status, "Inactivo") }}</span>
         </section>
         <div class="customer-profile-grid">
             <section class="crm-profile-card">
@@ -40,7 +40,7 @@
                     <div class="admin-field"><label for="customer-name">Nombre completo</label><input id="customer-name" value="{{ customer.full_name }}" required minlength="2" maxlength="150"></div>
                     <div class="admin-field"><label for="customer-email">Correo electrónico</label><input id="customer-email" type="email" value="{{ customer.email or '' }}" maxlength="150"></div>
                     <div class="admin-field"><label for="customer-phone">Teléfono</label><input id="customer-phone" type="tel" value="{{ customer.phone or '' }}" maxlength="30"></div>
-                    <div class="admin-field"><label for="customer-status">Estado del cliente</label><select id="customer-status" class="crm-select"><option value="active" {% if customer.status == 'active' %}selected{% endif %}>Activo</option><option value="inactive" {% if customer.status == 'inactive' %}selected{% endif %}>Inactivo</option></select></div>
+                    <div class="admin-field"><label for="customer-status">Estado del cliente</label><select id="customer-status" class="crm-select"><option value="lead" {% if customer.status == 'lead' %}selected{% endif %}>Prospecto</option><option value="active" {% if customer.status == 'active' %}selected{% endif %}>Activo</option><option value="inactive" {% if customer.status == 'inactive' %}selected{% endif %}>Inactivo</option></select></div>
                     <div id="customer-edit-feedback" class="crm-feedback" hidden></div>
                     <button type="submit" class="admin-primary-button" id="customer-save-button">Guardar cambios</button>
                 </form>
@@ -58,7 +58,7 @@
                 <form id="interaction-form" data-customer-id="{{ customer.id }}"><label for="interaction-message">Nueva nota de seguimiento</label><textarea id="interaction-message" rows="4" maxlength="2000" required placeholder="Escribe una nota sobre la atención, seguimiento o solicitud del cliente..."></textarea><div id="interaction-feedback" class="crm-feedback" hidden></div><button type="submit" class="admin-primary-button" id="interaction-save-button">Registrar seguimiento</button></form>
                 <div class="interaction-timeline">
                     {% for interaction in interactions %}
-                    <article class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><div class="timeline-header"><strong>{{ "Nota administrativa" if interaction.channel == "crm" else "Interacción · " ~ interaction.channel }}</strong><span>{{ interaction.created_at }}</span></div><p>{{ interaction.message }}</p>{% if interaction.response %}<small>{{ interaction.response }}</small>{% endif %}</div></article>
+                    <article class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><div class="timeline-header"><strong>{{ {"crm": "Nota administrativa", "contacto": "Formulario de contacto", "chatbot": "Chatbot", "web": "Sitio web"}.get(interaction.channel, "Interacción · " ~ interaction.channel) }}</strong><span>{{ interaction.created_at }}</span></div><p>{{ interaction.message }}</p>{% if interaction.response %}<small>{{ interaction.response }}</small>{% endif %}</div></article>
                     {% else %}<div class="crm-empty"><span>◷</span><p>Todavía no hay interacciones registradas.</p></div>{% endfor %}
                 </div>
             </section>
