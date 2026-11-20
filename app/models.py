@@ -57,6 +57,16 @@ def initialize_database():
             UNIQUE(professional_id, appointment_date, start_time)
         );
 
+        CREATE TABLE IF NOT EXISTS schedule_day_settings (
+            professional_id INTEGER NOT NULL,
+            appointment_date TEXT NOT NULL,
+            is_closed INTEGER NOT NULL DEFAULT 0
+                CHECK (is_closed IN (0, 1)),
+            PRIMARY KEY (professional_id, appointment_date),
+            FOREIGN KEY (professional_id)
+                REFERENCES professionals(id)
+        );
+
         CREATE TABLE IF NOT EXISTS appointments (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             folio TEXT UNIQUE NOT NULL,
@@ -196,6 +206,19 @@ def seed_schedules():
 
                 # Lunes a sábado
                 if appointment_day.weekday() == 6:
+                    continue
+
+                customized = db.execute("""
+                    SELECT 1
+                    FROM schedule_day_settings
+                    WHERE professional_id = ?
+                      AND appointment_date = ?
+                """, (
+                    professional["id"],
+                    appointment_day.isoformat()
+                )).fetchone()
+
+                if customized:
                     continue
 
                 for start_time, end_time in appointment_hours:

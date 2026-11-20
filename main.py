@@ -1,5 +1,6 @@
 
 import os
+import re
 import secrets
 import sqlite3
 from datetime import date, timedelta
@@ -11,6 +12,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
+from typing import Literal
 from starlette.middleware.sessions import SessionMiddleware
 
 from contextlib import asynccontextmanager
@@ -212,6 +214,13 @@ async def get_available_schedules(
             WHERE professional_id = ?
             AND appointment_date = ?
             AND status = 'available'
+            AND NOT EXISTS (
+                SELECT 1
+                FROM schedule_day_settings ds
+                WHERE ds.professional_id = schedules.professional_id
+                  AND ds.appointment_date = schedules.appointment_date
+                  AND ds.is_closed = 1
+            )
             AND EXISTS (
                 SELECT 1
                 FROM professionals p
@@ -246,6 +255,7 @@ async def create_appointment(appointment: AppointmentRequest):
     folio = f"MB-{secrets.token_hex(4).upper()}"
 
     with get_db() as db:
+        db.execute("BEGIN IMMEDIATE")
         schedule = db.execute("""
             SELECT
                 s.id,
@@ -300,6 +310,16 @@ async def create_appointment(appointment: AppointmentRequest):
             raise HTTPException(
                 status_code=409,
                 detail="Este horario ya no está disponible."
+            )
+
+        if is_schedule_day_closed(
+            db,
+            schedule["professional_id"],
+            schedule["appointment_date"]
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="Este día está cerrado para reservaciones."
             )
 
         updated = db.execute("""
@@ -408,6 +428,16 @@ def require_admin(request: Request):
         )
 
     return admin
+
+
+def is_schedule_day_closed(db, professional_id: int, appointment_date: str):
+    return db.execute("""
+        SELECT 1
+        FROM schedule_day_settings
+        WHERE professional_id = ?
+          AND appointment_date = ?
+          AND is_closed = 1
+    """, (professional_id, appointment_date)).fetchone() is not None
 
 
 def has_pending_confirmed_appointments(
@@ -1421,6 +1451,13 @@ async def erp_reschedule_options(
             WHERE professional_id = ?
               AND appointment_date = ?
               AND status = 'available'
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM schedule_day_settings ds
+                  WHERE ds.professional_id = s.professional_id
+                    AND ds.appointment_date = s.appointment_date
+                    AND ds.is_closed = 1
+              )
             ORDER BY start_time
         """, (professional_id, selected_date.isoformat())).fetchall()
 
@@ -1516,6 +1553,16 @@ async def erp_reschedule_appointment(
                 detail="El nuevo horario ya no está disponible."
             )
 
+        if is_schedule_day_closed(
+            db,
+            new_schedule["professional_id"],
+            new_schedule["appointment_date"]
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="No puedes reprogramar una cita a un día cerrado."
+            )
+
         released = db.execute("""
             UPDATE schedules
             SET status = 'available'
@@ -1570,4 +1617,330 @@ async def erp_reschedule_appointment(
     return {
         "success": True,
         "message": "Reservación reprogramada correctamente."
+    }
+
+
+# =========================================================
+# ETAPA 7D - ADMINISTRACIÓN DE HORARIOS
+# =========================================================
+
+class ScheduleCreate(BaseModel):
+    professional_id: int = Field(gt=0)
+    appointment_date: str
+    start_time: str
+    end_time: str
+    status: Literal["available", "blocked"] = "available"
+
+
+class ScheduleUpdate(BaseModel):
+    start_time: str
+    end_time: str
+    status: Literal["available", "blocked"]
+
+
+class ScheduleDayUpdate(BaseModel):
+    is_closed: bool
+
+
+def validate_schedule_times(start: str, end: str):
+    pattern = r"(?:[01]\d|2[0-3]):[0-5]\d"
+    if not re.fullmatch(pattern, start) or not re.fullmatch(pattern, end):
+        raise HTTPException(
+            status_code=400,
+            detail="Las horas deben tener el formato HH:MM."
+        )
+    if start >= end:
+        raise HTTPException(
+            status_code=400,
+            detail="La hora de término debe ser posterior al inicio."
+        )
+
+
+def validate_schedule_management_date(value: str) -> date:
+    try:
+        selected = date.fromisoformat(value)
+    except (ValueError, TypeError):
+        raise HTTPException(
+            status_code=400,
+            detail="Fecha inválida. Utiliza YYYY-MM-DD."
+        )
+
+    today = date.today()
+    if not (today < selected <= today + timedelta(days=14)):
+        raise HTTPException(
+            status_code=400,
+            detail="Selecciona una fecha entre mañana y los próximos 14 días."
+        )
+    if selected.weekday() == 6:
+        raise HTTPException(
+            status_code=400,
+            detail="No se pueden administrar horarios los domingos."
+        )
+    return selected
+
+
+def ensure_schedule_has_no_overlap(
+    db,
+    professional_id: int,
+    appointment_date: str,
+    start_time: str,
+    end_time: str,
+    exclude_id: int | None = None
+):
+    params = [professional_id, appointment_date, end_time, start_time]
+    exclusion = ""
+    if exclude_id is not None:
+        exclusion = "AND id != ?"
+        params.append(exclude_id)
+
+    overlap = db.execute(f"""
+        SELECT 1
+        FROM schedules
+        WHERE professional_id = ?
+          AND appointment_date = ?
+          AND start_time < ?
+          AND end_time > ?
+          {exclusion}
+        LIMIT 1
+    """, params).fetchone()
+
+    if overlap:
+        raise HTTPException(
+            status_code=409,
+            detail="El horario se superpone con otro turno."
+        )
+
+
+@app.get("/admin/horarios")
+async def admin_schedules_page(request: Request):
+    admin = get_current_admin(request)
+    if not admin:
+        return RedirectResponse(url="/admin/login", status_code=303)
+
+    return templates.TemplateResponse(
+        request=request,
+        name="admin_schedules.html",
+        context={
+            "title": "Horarios | MediBot 360",
+            "admin": admin
+        }
+    )
+
+
+@app.get("/api/admin/schedule-management")
+async def admin_get_schedule_management(
+    request: Request,
+    professional_id: int,
+    appointment_date: str = Query(max_length=10)
+):
+    require_admin(request)
+    validate_schedule_management_date(appointment_date)
+
+    with get_db() as db:
+        professional = db.execute("""
+            SELECT id
+            FROM professionals
+            WHERE id = ?
+        """, (professional_id,)).fetchone()
+        if not professional:
+            raise HTTPException(
+                status_code=404,
+                detail="El profesional no existe."
+            )
+
+        schedules = db.execute("""
+            SELECT
+                s.id,
+                s.professional_id,
+                s.appointment_date,
+                s.start_time,
+                s.end_time,
+                s.status,
+                a.folio
+            FROM schedules s
+            LEFT JOIN appointments a
+                ON a.schedule_id = s.id
+            WHERE s.professional_id = ?
+              AND s.appointment_date = ?
+            ORDER BY s.start_time
+        """, (professional_id, appointment_date)).fetchall()
+
+        is_closed = is_schedule_day_closed(
+            db, professional_id, appointment_date
+        )
+
+    return {
+        "success": True,
+        "is_closed": is_closed,
+        "data": [dict(schedule) for schedule in schedules]
+    }
+
+
+@app.post("/api/admin/manage-schedules")
+async def admin_create_schedule(data: ScheduleCreate, request: Request):
+    require_admin(request)
+    selected_date = validate_schedule_management_date(data.appointment_date)
+    validate_schedule_times(data.start_time, data.end_time)
+
+    with get_db() as db:
+        if is_schedule_day_closed(
+            db, data.professional_id, selected_date.isoformat()
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="No puedes agregar horarios a un día cerrado."
+            )
+
+        professional = db.execute("""
+            SELECT id
+            FROM professionals
+            WHERE id = ? AND active = 1
+        """, (data.professional_id,)).fetchone()
+        if not professional:
+            raise HTTPException(
+                status_code=404,
+                detail="El profesional no existe o está inactivo."
+            )
+
+        ensure_schedule_has_no_overlap(
+            db,
+            data.professional_id,
+            selected_date.isoformat(),
+            data.start_time,
+            data.end_time
+        )
+
+        try:
+            cursor = db.execute("""
+                INSERT INTO schedules
+                (professional_id, appointment_date, start_time, end_time, status)
+                VALUES (?, ?, ?, ?, ?)
+            """, (
+                data.professional_id,
+                selected_date.isoformat(),
+                data.start_time,
+                data.end_time,
+                data.status
+            ))
+        except sqlite3.IntegrityError:
+            raise HTTPException(
+                status_code=409,
+                detail="Ya existe un horario con ese inicio."
+            )
+
+    return {
+        "success": True,
+        "message": "Horario creado correctamente.",
+        "schedule_id": cursor.lastrowid
+    }
+
+
+@app.put("/api/admin/manage-schedules/{schedule_id}")
+async def admin_update_schedule(
+    schedule_id: int,
+    data: ScheduleUpdate,
+    request: Request
+):
+    require_admin(request)
+    validate_schedule_times(data.start_time, data.end_time)
+
+    with get_db() as db:
+        schedule = db.execute("""
+            SELECT id, professional_id, appointment_date, status
+            FROM schedules
+            WHERE id = ?
+        """, (schedule_id,)).fetchone()
+        if not schedule:
+            raise HTTPException(status_code=404, detail="El horario no existe.")
+
+        appointment = db.execute("""
+            SELECT 1
+            FROM appointments
+            WHERE schedule_id = ?
+            LIMIT 1
+        """, (schedule_id,)).fetchone()
+        if appointment:
+            raise HTTPException(
+                status_code=409,
+                detail="No puedes modificar un horario con historial de citas."
+            )
+
+        if is_schedule_day_closed(
+            db, schedule["professional_id"], schedule["appointment_date"]
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="No puedes modificar horarios de un día cerrado."
+            )
+
+        ensure_schedule_has_no_overlap(
+            db,
+            schedule["professional_id"],
+            schedule["appointment_date"],
+            data.start_time,
+            data.end_time,
+            schedule_id
+        )
+        db.execute("""
+            UPDATE schedules
+            SET start_time = ?, end_time = ?, status = ?
+            WHERE id = ?
+        """, (data.start_time, data.end_time, data.status, schedule_id))
+
+    return {"success": True, "message": "Horario actualizado correctamente."}
+
+
+@app.put("/api/admin/schedule-days/{professional_id}/{appointment_date}")
+async def admin_update_schedule_day(
+    professional_id: int,
+    appointment_date: str,
+    data: ScheduleDayUpdate,
+    request: Request
+):
+    require_admin(request)
+    selected_date = validate_schedule_management_date(appointment_date)
+
+    with get_db() as db:
+        professional = db.execute("""
+            SELECT id
+            FROM professionals
+            WHERE id = ?
+        """, (professional_id,)).fetchone()
+        if not professional:
+            raise HTTPException(status_code=404, detail="El profesional no existe.")
+
+        if data.is_closed:
+            confirmed = db.execute("""
+                SELECT 1
+                FROM appointments a
+                INNER JOIN schedules s ON s.id = a.schedule_id
+                WHERE a.professional_id = ?
+                  AND s.appointment_date = ?
+                  AND a.status = 'confirmed'
+                LIMIT 1
+            """, (professional_id, selected_date.isoformat())).fetchone()
+            if confirmed:
+                raise HTTPException(
+                    status_code=409,
+                    detail="No puedes cerrar un día con citas confirmadas."
+                )
+
+        db.execute("""
+            INSERT INTO schedule_day_settings
+                (professional_id, appointment_date, is_closed)
+            VALUES (?, ?, ?)
+            ON CONFLICT(professional_id, appointment_date)
+            DO UPDATE SET is_closed = excluded.is_closed
+        """, (
+            professional_id,
+            selected_date.isoformat(),
+            int(data.is_closed)
+        ))
+
+    return {
+        "success": True,
+        "message": (
+            "Día bloqueado correctamente."
+            if data.is_closed else "Día reabierto correctamente."
+        )
     }

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="/static/css/admin.css">
+    <script src="/static/js/admin.js" defer></script>
+    <script src="/static/js/erp_schedules.js" defer></script>
+</head>
+<body class="dashboard-page">
+    <aside class="admin-sidebar">
+        <a href="/admin" class="admin-brand"><span class="brand-symbol">✚</span><span>MediBot <strong>360</strong></span></a>
+        <span class="sidebar-label">ADMINISTRACIÓN</span>
+        <nav class="admin-navigation">
+            <a href="/admin" class="nav-item"><span>▦</span>Resumen general</a>
+            <a href="/admin/clientes" class="nav-item"><span>♙</span>Clientes</a>
+            <a href="/admin/reservaciones" class="nav-item"><span>▣</span>Reservaciones</a>
+            <a href="/admin/catalogo" class="nav-item"><span>✚</span>Catálogo</a>
+            <a href="/admin/horarios" class="nav-item active"><span>▦</span>Horarios</a>
+            <div class="nav-item disabled"><span>▤</span>Reportes<small>Próximamente</small></div>
+        </nav>
+        <div class="sidebar-bottom">
+            <div class="administrator-info"><div class="administrator-avatar">{{ admin.username[0]|upper }}</div><div><strong>{{ admin.username }}</strong><span>Administrador</span></div></div>
+            <button id="logout-button" class="logout-button">Cerrar sesión</button>
+        </div>
+    </aside>
+    <main class="admin-content">
+        <header class="admin-topbar"><div><span class="breadcrumb">MEDIBOT 360 / ERP / HORARIOS</span><h1>Administración de horarios</h1></div><a href="/admin" class="visit-site">Panel principal</a></header>
+        <section class="welcome-section"><div><span class="welcome-label">CONTROL DE DISPONIBILIDAD</span><h2>Agenda de profesionales</h2><p>Configura los horarios y días disponibles para reservaciones.</p></div><div class="welcome-symbol">◷</div></section>
+        <section class="schedule-card">
+            <div class="schedule-filters">
+                <div class="schedule-field"><label for="schedule-professional">Profesional</label><select id="schedule-professional"></select></div>
+                <div class="schedule-field"><label for="schedule-date">Fecha</label><input type="date" id="schedule-date"></div>
+            </div>
+            <div class="schedule-day-bar">
+                <div class="schedule-day-copy">
+                    <span class="schedule-day-label">Estado del día</span>
+                    <strong id="schedule-day-status">Consultando disponibilidad...</strong>
+                    <span>Cerrar un día impide nuevas reservaciones.</span>
+                </div>
+                <button id="schedule-day-toggle" type="button" class="schedule-block-day" disabled>Bloquear día</button>
+            </div>
+        </section>
+        <div class="schedule-layout">
+            <section class="schedule-card">
+                <div class="section-header"><div><h2>Horarios registrados</h2><p id="schedule-total">Consultando horarios...</p></div></div>
+                <div class="table-container"><table class="schedule-table"><thead><tr><th>INICIO</th><th>FIN</th><th>ESTADO</th><th>FOLIO</th><th>ACCIONES</th></tr></thead><tbody id="schedule-table-body"><tr><td colspan="5" class="empty-table">Cargando horarios...</td></tr></tbody></table></div>
+            </section>
+            <section class="schedule-card">
+                <div class="section-header"><div><h2 id="schedule-form-title">Nuevo horario</h2><p>Configura un turno para el día elegido.</p></div></div>
+                <form id="schedule-form">
+                    <input type="hidden" id="schedule-edit-id">
+                    <div class="schedule-field"><label for="schedule-start">Hora de inicio</label><input type="time" id="schedule-start" value="09:00" required></div>
+                    <div class="schedule-field"><label for="schedule-end">Hora de término</label><input type="time" id="schedule-end" value="10:00" required></div>
+                    <div class="schedule-field"><label for="schedule-slot-status">Estado del turno</label><select id="schedule-slot-status"><option value="available">Disponible</option><option value="blocked">Bloqueado</option></select></div>
+                    <div class="schedule-form-actions"><button type="submit" id="schedule-save" class="admin-primary-button">Guardar horario</button><button type="button" id="schedule-reset" class="schedule-secondary">Limpiar</button></div>
+                    <p id="schedule-feedback" class="schedule-feedback" role="status" aria-live="polite"></p>
+                </form>
+            </section>
+        </div>
+        <footer class="admin-footer"><span>MediBot 360 · ERP</span><span>Administración de horarios</span></footer>
+    </main>
+</body>
+</html>
