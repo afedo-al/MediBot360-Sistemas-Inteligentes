@@ -1,285 +1,282 @@
-
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="MediBot 360: coordinación de servicios médicos.">
-
-    <title>MediBot 360 | Tu atención, más sencilla</title>
-
-    <link rel="stylesheet" href="/static/css/style.css">
-    <link rel="stylesheet" href="/static/css/chatbot.css?v=8a1">
-    <link rel="stylesheet" href="/static/css/medibot-next.css?v=12d">
-    <script src="/static/js/medibot-next.js?v=12a" defer></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MediBot 360 · Clínica de especialidades en Campeche</title>
+<meta name="description" content="Agenda tu consulta en línea con especialistas en Campeche. Medicina general, cardiología, dermatología, pediatría, nutrición y psicología.">
+<meta name="theme-color" content="#FFFFFF">
+<link rel="icon" href="/static/img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/css/style.css?v=7">
 </head>
-
 <body>
+<a class="skip" href="#contenido">Saltar al contenido</a>
 
-    <header class="navbar">
-        <a href="/sitio" class="brand">
-            <span class="brand-icon">✚</span>
-            MediBot <span>360</span>
-        </a>
+<div class="topbar-info">
+  <div class="wrap">
+    <span><i data-icon="clock"></i>Lun – Vie 9:00 – 17:00 · Sáb 9:00 – 13:00</span>
+    <span class="hide-sm"><i data-icon="pin"></i>Centro Histórico, San Francisco de Campeche</span>
+    <a href="tel:911" class="em"><i data-icon="alert"></i>Emergencias: 911</a>
+    <a href="/" class="hide-sm"><i data-icon="lock"></i>Acceso personal</a>
+  </div>
+</div>
 
-        <nav class="nav-links">
-            <a href="#inicio">Inicio</a>
-            <a href="#servicios">Especialidades</a>
-            <a href="#proceso">Cómo funciona</a>
-            <a href="#contacto">Contacto</a>
-            <a href="#nosotros">Nosotros</a>
-        </nav>
-
-        <a href="#servicios" class="nav-button">
-            Explorar servicios
-        </a>
-    </header>
-
-    <main>
-        <section class="hero" id="inicio">
-
-            <span class="eyebrow">
-                COORDINACIÓN DE SERVICIOS MÉDICOS
-            </span>
-
-            <h1>
-                Tu atención,<br>
-                <span>más sencilla.</span>
-            </h1>
-
-            <p>
-                Consulta especialidades, descubre horarios
-                disponibles y administra tus reservaciones
-                desde un solo lugar.
-            </p>
-
-            <div class="hero-actions">
-                <a href="#servicios" class="primary-button">
-                    Conocer servicios
-                </a>
-
-                <a href="#nosotros" class="secondary-button">
-                    Conocer MediBot 360
-                </a>
-            </div>
-
-            <div class="hero-note">
-                Una experiencia de atención más simple y organizada.
-            </div>
-
-        </section>
-
-        <section class="services" id="servicios">
-
-            <span class="eyebrow">NUESTROS SERVICIOS</span>
-
-            <h2>Encuentra la atención que necesitas.</h2>
-
-            <p class="section-description">
-                Explora las especialidades disponibles en MediBot 360.
-            </p>
-
-            <div class="service-grid" id="specialties-container">
-                <p class="loading-message">
-                    Cargando especialidades...
-                </p>
-            </div>
-
-        </section>
-
-        <section class="how-it-works" id="proceso">
-
-            <span class="eyebrow">CÓMO FUNCIONA</span>
-
-            <h2>Reservar es simple.</h2>
-
-            <div class="steps-grid">
-                <article class="step-card">
-                    <span class="step-number">1</span>
-                    <h3>Elige tu servicio</h3>
-                    <p>Consulta especialidades, profesionales y precios de demostración.</p>
-                </article>
-                <article class="step-card">
-                    <span class="step-number">2</span>
-                    <h3>Selecciona fecha y horario</h3>
-                    <p>Solo se muestran turnos libres de los próximos 14 días.</p>
-                </article>
-                <article class="step-card">
-                    <span class="step-number">3</span>
-                    <h3>Recibe tu folio</h3>
-                    <p>Con el folio puedes consultar o cancelar tu cita desde el chatbot.</p>
-                </article>
-            </div>
-
-        </section>
-
-        <section class="contact" id="contacto">
-
-            <span class="eyebrow">CONTACTO</span>
-
-            <h2>¿Tienes dudas? Escríbenos.</h2>
-
-            <p class="section-description">
-                Tu mensaje llega a recepción y queda registrado en el CRM.
-            </p>
-
-            <div class="contact-layout">
-
-                <ul class="contact-info">
-                    <li><strong>Dirección</strong><span>Av. Demostración 123, Centro, San Francisco de Campeche (ficticia)</span></li>
-                    <li><strong>Teléfono</strong><span>981 000 0000 (ficticio)</span></li>
-                    <li><strong>Correo</strong><span>contacto@medibot360.example</span></li>
-                    <li><strong>Horario</strong><span>Lunes a sábado de 9:00 a 18:00</span></li>
-                </ul>
-
-                <form id="contact-form" class="contact-form" novalidate>
-                    <label for="contact-name">Nombre completo</label>
-                    <input id="contact-name" name="full_name" minlength="3"
-                           maxlength="150" autocomplete="name" required>
-
-                    <label for="contact-email">Correo electrónico</label>
-                    <input id="contact-email" name="email" type="email"
-                           maxlength="150" autocomplete="email" required>
-
-                    <label for="contact-phone">Teléfono (opcional)</label>
-                    <input id="contact-phone" name="phone" type="tel"
-                           maxlength="20" autocomplete="tel">
-
-                    <label for="contact-message">Mensaje</label>
-                    <textarea id="contact-message" name="message" rows="4"
-                              minlength="5" maxlength="1000" required></textarea>
-
-                    <p id="contact-status" class="contact-status" role="status"
-                       aria-live="polite"></p>
-
-                    <button id="contact-submit" type="submit"
-                            class="primary-button">Enviar mensaje</button>
-
-                    <small>Usa datos de demostración. No envíes información médica.</small>
-                </form>
-
-            </div>
-
-        </section>
-
-        <section class="about" id="nosotros">
-            <span class="eyebrow">MEDIBOT 360</span>
-            <h2>Todo comienza con una mejor organización.</h2>
-            <p>
-                Una plataforma digital para facilitar la coordinación
-                y administración de servicios médicos.
-            </p>
-        </section>
-
-    </main>
-
-    <footer>
-        <p>© 2026 MediBot 360. Proyecto académico.</p>
-        <p>Los servicios y datos son demostrativos.</p>
-    </footer>
-
-    <div id="mb-chat-root" class="mb-chat-root">
-        <button id="mb-chat-toggle" class="mb-chat-launcher" type="button"
-                aria-controls="mb-chat-panel" aria-expanded="false">
-            <span aria-hidden="true">✚</span>
-            Hablar con MediBot
-        </button>
-
-        <section id="mb-chat-panel" class="mb-chat-panel"
-                 aria-label="Asistente virtual MediBot" hidden>
-            <header class="mb-chat-header">
-                <div>
-                    <strong>MediBot 360</strong>
-                    <small>Recepción virtual · Proyecto académico</small>
-                </div>
-                <button id="mb-chat-close" type="button"
-                        aria-label="Cerrar chatbot">×</button>
-            </header>
-
-            <div id="mb-chat-history" class="mb-chat-history"
-                 role="log" aria-live="polite"></div>
-            <div id="mb-chat-actions" class="mb-chat-actions"
-                 aria-label="Opciones rápidas"></div>
-
-            <form id="mb-chat-booking" class="mb-chat-workflow" hidden>
-                <strong>Reservar una cita</strong>
-
-                <label for="mb-chat-specialty">Especialidad</label>
-                <select id="mb-chat-specialty" required>
-                    <option value="">Selecciona especialidad</option>
-                </select>
-
-                <label for="mb-chat-professional">Profesional</label>
-                <select id="mb-chat-professional" required disabled>
-                    <option value="">Selecciona profesional</option>
-                </select>
-
-                <label for="mb-chat-date">Fecha</label>
-                <input id="mb-chat-date" type="date" required disabled>
-
-                <label for="mb-chat-slot">Horario</label>
-                <select id="mb-chat-slot" required disabled>
-                    <option value="">Selecciona horario</option>
-                </select>
-
-                <label for="mb-chat-name">Nombre completo</label>
-                <input id="mb-chat-name" minlength="3" maxlength="150"
-                       autocomplete="name" required>
-
-                <label for="mb-chat-email">Correo electrónico</label>
-                <input id="mb-chat-email" type="email" maxlength="150"
-                       autocomplete="email" required>
-
-                <label for="mb-chat-phone">Teléfono</label>
-                <input id="mb-chat-phone" type="tel" minlength="10"
-                       maxlength="20" autocomplete="tel" required>
-
-                <p id="mb-chat-book-status"
-                   class="mb-chat-form-status" role="status"></p>
-                <button id="mb-chat-book-submit" type="submit" disabled>
-                    Confirmar reservación
-                </button>
-            </form>
-
-            <form id="mb-chat-verify" class="mb-chat-workflow" hidden>
-                <strong>Verificación de reservación</strong>
-                <p>Ingresa el folio, correo y teléfono registrados en tu cita.</p>
-
-                <label for="mb-chat-folio">Folio</label>
-                <input id="mb-chat-folio" placeholder="MB-XXXXXXXX"
-                       minlength="11" maxlength="20" required>
-
-                <label for="mb-chat-proof-email">Correo registrado</label>
-                <input id="mb-chat-proof-email" type="email"
-                       maxlength="150" required>
-
-                <label for="mb-chat-proof-phone">Teléfono registrado</label>
-                <input id="mb-chat-proof-phone" type="tel"
-                       minlength="10" maxlength="20" required>
-
-                <p id="mb-chat-proof-status"
-                   class="mb-chat-form-status" role="status"></p>
-                <button id="mb-chat-proof-submit" type="submit">
-                    Continuar
-                </button>
-            </form>
-
-            <form id="mb-chat-compose" class="mb-chat-compose">
-                <input id="mb-chat-message"
-                       placeholder="Escribe tu pregunta..."
-                       maxlength="500" aria-label="Mensaje para MediBot" required>
-                <button id="mb-chat-send" type="submit">Enviar</button>
-            </form>
-
-            <p class="mb-chat-disclaimer">
-                Asistente informativo: no da diagnósticos.
-                Emergencias: 911.
-            </p>
-        </section>
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="/sitio" aria-label="MediBot 360, inicio">
+      <span class="brand-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span>
+      <span>MediBot 360<small>Clínica de especialidades</small></span>
+    </a>
+    <button class="nav-toggle" aria-label="Abrir menú" aria-expanded="false"><i data-icon="menu"></i></button>
+    <nav class="main-nav" aria-label="Principal">
+      <a href="#especialidades">Especialidades</a>
+      <a href="#asistente">Asistente</a>
+      <a href="#equipo">Equipo</a>
+      <a href="#preguntas">Preguntas</a>
+      <a href="#contacto">Contacto</a>
+    </nav>
+    <div class="header-cta">
+      <a class="btn btn-outline btn-sm" href="/reservar#mis-citas">Mis citas</a>
+      <a class="btn btn-primary" href="/reservar">Agendar cita</a>
     </div>
+  </div>
+</header>
 
-    <script src="/static/js/app.js"></script>
-    <script src="/static/js/chatbot.js?v=8a1"></script>
+<main id="contenido">
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-bg" aria-hidden="true"></div>
+    <div class="wrap">
+      <div class="hero-copy">
+        <span class="eyebrow"><span class="dot"></span>Agenda en línea disponible las 24 horas</span>
+        <h1>Atención médica de especialidad, <em>sin filas ni llamadas.</em></h1>
+        <p class="lead">Elige a tu especialista, revisa horarios en tiempo real y confirma tu cita en menos de dos
+          minutos. Recibe un folio y un PIN privado para darle seguimiento desde cualquier dispositivo.</p>
 
+        <form class="quick-book" action="/reservar" method="get" aria-label="Buscar disponibilidad">
+          <div class="qb-field">
+            <i data-icon="stethoscope"></i>
+            <label for="qb-spec" class="sr-only">Especialidad</label>
+            <select id="qb-spec" name="especialidad"><option value="">¿Qué especialidad necesitas?</option></select>
+          </div>
+          <button class="btn btn-primary btn-lg">Ver disponibilidad <i data-icon="arrow"></i></button>
+        </form>
+
+        <ul class="hero-points">
+          <li><i data-icon="checkCircle"></i>Sin costo por agendar</li>
+          <li><i data-icon="checkCircle"></i>Pago en clínica</li>
+          <li><i data-icon="checkCircle"></i>Cancela cuando quieras</li>
+        </ul>
+      </div>
+
+      <aside class="availability" aria-labelledby="av-title">
+        <div class="av-head">
+          <div><h2 id="av-title">Próximos horarios</h2><p>Actualizado en tiempo real</p></div>
+          <span class="live"><span></span>En vivo</span>
+        </div>
+        <ul class="av-list" id="av-list">
+          <li class="skeleton"></li><li class="skeleton"></li><li class="skeleton"></li><li class="skeleton"></li>
+        </ul>
+        <a class="av-foot" href="/reservar">Ver agenda completa <i data-icon="arrow"></i></a>
+      </aside>
+    </div>
+  </section>
+
+  <!-- CONFIANZA -->
+  <section class="trust-strip" aria-label="Beneficios">
+    <div class="wrap">
+      <div><i data-icon="calendar"></i><span><b>Agenda 24/7</b>Reserva en cualquier momento</span></div>
+      <div><i data-icon="ticket"></i><span><b>Folio + PIN privado</b>Consulta o cancela con seguridad</span></div>
+      <div><i data-icon="card"></i><span><b>Pago flexible</b>Efectivo, tarjeta o transferencia</span></div>
+      <div><i data-icon="shield"></i><span><b>Datos mínimos</b>Solo un alias para reservar</span></div>
+    </div>
+  </section>
+
+  <!-- ESPECIALIDADES -->
+  <section class="section" id="especialidades">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="kicker">Especialidades</span>
+        <h2>Atención integral para toda la familia</h2>
+        <p>Precios transparentes y disponibilidad visible antes de reservar.</p>
+      </div>
+      <div class="services" id="specialties" aria-live="polite">
+        <div class="svc skeleton-card"></div><div class="svc skeleton-card"></div><div class="svc skeleton-card"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CIFRAS -->
+  <section class="stats-band" aria-label="Cifras">
+    <div class="wrap">
+      <div class="reveal"><b data-count id="c-specs">6</b><span>Especialidades</span></div>
+      <div class="reveal"><b data-count id="c-pros">6</b><span>Especialistas</span></div>
+      <div class="reveal"><b data-count id="c-appts">0</b><span>Citas gestionadas</span></div>
+      <div class="reveal"><b>&lt; 2 min</b><span>Para agendar en línea</span></div>
+    </div>
+  </section>
+
+  <!-- CÓMO FUNCIONA -->
+  <section class="section soft" id="como-funciona">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="kicker">Cómo funciona</span>
+        <h2>Tu cita en tres pasos</h2>
+        <p>Desde el sitio o conversando con nuestro asistente virtual.</p>
+      </div>
+      <div class="steps">
+        <div class="step reveal"><span class="num">01</span><span class="svc-ico"><i data-icon="stethoscope"></i></span><h3>Elige tu especialidad</h3><p>Compara servicios, especialistas y precios en un solo lugar.</p></div>
+        <div class="step reveal"><span class="num">02</span><span class="svc-ico"><i data-icon="calendar"></i></span><h3>Selecciona fecha y hora</h3><p>Solo mostramos horarios libres, actualizados al instante.</p></div>
+        <div class="step reveal"><span class="num">03</span><span class="svc-ico"><i data-icon="ticket"></i></span><h3>Recibe folio y PIN</h3><p>Agrega la cita a tu calendario y consúltala o cancélala cuando quieras.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ASISTENTE -->
+  <section class="section" id="asistente">
+    <div class="wrap split">
+      <div class="reveal">
+        <span class="kicker">Asistente virtual</span>
+        <h2 class="h-lg">Resuelve tus dudas y agenda conversando</h2>
+        <p class="muted-lg">MediBot entiende frases como <b>«quiero cardiología el viernes»</b> y te lleva directo a los
+          horarios libres. Responde precios, ubicación y formas de pago, y canaliza a recepción cuando lo necesitas.</p>
+        <ul class="checklist">
+          <li><i data-icon="check"></i>Reserva, consulta y cancelación verificada con folio y PIN</li>
+          <li><i data-icon="check"></i>Muestra opciones reales por especialista y entiende «prefiero con la doctora»</li>
+          <li><i data-icon="check"></i>Entiende fechas como «mañana», «el lunes» o «25/11»</li>
+          <li><i data-icon="check"></i>Registra solicitudes de contacto para recepción</li>
+          <li><i data-icon="check"></i>Protocolo seguro: no diagnostica y deriva emergencias al 911</li>
+        </ul>
+        <button class="btn btn-primary btn-lg" type="button" data-open-chat><i data-icon="chat"></i>Probar el asistente</button>
+      </div>
+      <div class="phone reveal" aria-hidden="true">
+        <div class="phone-head"><span class="avatar"><svg viewBox="0 0 24 24" width="18" height="18" stroke="#fff" fill="none" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span><div><b>Asistente MediBot</b><small>En línea</small></div></div>
+        <div class="phone-body">
+          <div class="pb me">Quiero cardiología el viernes</div>
+          <div class="pb">Horarios libres el Vie con Dr. Daniel Vega:</div>
+          <div class="pb-chips"><span>09:00</span><span>10:00</span><span>11:00</span><span>13:00</span></div>
+          <div class="pb me">A las 10</div>
+          <div class="pb">Perfecto. ¿A nombre de quién registro la cita?</div>
+          <div class="pb me">Ana P.</div>
+          <div class="pb ok">✅ ¡Cita confirmada! Guarda tu folio y tu PIN.</div>
+          <div class="pb folio">MB-7KQ2X9PA · PIN ••••••</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- EQUIPO -->
+  <section class="section soft" id="equipo">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="kicker">Nuestro equipo</span>
+        <h2>Especialistas que te escuchan</h2>
+        <p>Profesionales con agenda en línea y atención personalizada.</p>
+      </div>
+      <div class="team" id="team"></div>
+    </div>
+  </section>
+
+  <!-- TESTIMONIOS -->
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="kicker">Testimonios</span>
+        <h2>Lo que dicen nuestros pacientes</h2>
+        <p class="small-note">Testimonios ilustrativos para el prototipo académico.</p>
+      </div>
+      <div class="quotes">
+        <figure class="quote reveal"><div class="stars" aria-label="5 de 5">★★★★★</div><blockquote>Agendé desde el celular en un minuto y recibí mi folio al instante. Sin llamadas ni esperas.</blockquote><figcaption><span class="avatar">MR</span><span><b>María R.</b>Paciente de dermatología</span></figcaption></figure>
+        <figure class="quote reveal"><div class="stars" aria-label="5 de 5">★★★★★</div><blockquote>El asistente me dijo el precio y el horario más próximo para mi hijo. Muy práctico.</blockquote><figcaption><span class="avatar">JC</span><span><b>Jorge C.</b>Paciente de pediatría</span></figcaption></figure>
+        <figure class="quote reveal"><div class="stars" aria-label="5 de 5">★★★★★</div><blockquote>Tuve que cancelar y lo hice en línea con mi folio y PIN. El horario quedó libre para alguien más.</blockquote><figcaption><span class="avatar">LP</span><span><b>Laura P.</b>Paciente de nutrición</span></figcaption></figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- PREGUNTAS -->
+  <section class="section soft" id="preguntas">
+    <div class="wrap faq-wrap">
+      <div class="reveal">
+        <span class="kicker">Preguntas frecuentes</span>
+        <h2 class="h-lg">¿Tienes dudas?</h2>
+        <p class="muted-lg">Si no encuentras tu respuesta, pregúntale al asistente o solicita que recepción te contacte.</p>
+        <button class="btn btn-outline" type="button" data-open-chat><i data-icon="chat"></i>Preguntar al asistente</button>
+      </div>
+      <div class="faq">
+        <details class="reveal" open><summary>¿Tiene costo agendar una cita en línea?</summary><p>No. Agendar es gratuito; solo pagas la consulta en recepción el día de tu cita.</p></details>
+        <details class="reveal"><summary>¿Qué formas de pago aceptan?</summary><p>Efectivo, tarjeta de débito o crédito y transferencia. Al pagar recibes tu comprobante.</p></details>
+        <details class="reveal"><summary>¿Cómo consulto o cancelo mi cita?</summary><p>En «Mis citas» ingresa tu folio (MB-XXXXXXXX) y el PIN de 6 dígitos que recibiste al reservar. También puedes hacerlo desde el asistente.</p></details>
+        <details class="reveal"><summary>¿Qué debo llevar a mi consulta?</summary><p>Tu folio e identificación. Si tienes estudios o recetas previas, tráelos. Te sugerimos llegar 10 minutos antes.</p></details>
+        <details class="reveal"><summary>¿Atienden urgencias?</summary><p>No. Ante una emergencia llama al 911 o acude al servicio de urgencias más cercano.</p></details>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONTACTO -->
+  <section class="section" id="contacto">
+    <div class="wrap">
+      <div class="info-grid">
+        <div class="info-card reveal">
+          <h3><i data-icon="clock"></i>Horario de atención</h3>
+          <table class="hours">
+            <tr><td>Lunes a viernes</td><td>9:00 – 17:00</td></tr>
+            <tr><td>Sábado</td><td>9:00 – 13:00</td></tr>
+            <tr><td>Domingo</td><td class="closed">Cerrado</td></tr>
+          </table>
+        </div>
+        <div class="info-card reveal">
+          <h3><i data-icon="pin"></i>Ubicación y contacto</h3>
+          <ul>
+            <li><i data-icon="pin"></i>Calle 10 #000, Centro Histórico, San Francisco de Campeche, Camp.</li>
+            <li><i data-icon="phone"></i>(981) 000 0000</li>
+            <li><i data-icon="mail"></i>contacto@medibot360.example</li>
+          </ul>
+        </div>
+        <div class="info-card emergency reveal">
+          <h3><i data-icon="alert"></i>¿Es una emergencia?</h3>
+          <p>Este servicio no atiende urgencias. Si tu vida o la de alguien más está en riesgo, llama al <b>911</b>.</p>
+          <a class="btn btn-danger btn-sm" href="tel:911"><i data-icon="phone"></i>Llamar al 911</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" style="padding-top:0">
+    <div class="wrap">
+      <div class="cta-band reveal">
+        <div><h2>¿Listo para tu próxima consulta?</h2><p>Reserva ahora y recibe tu folio y PIN al instante.</p></div>
+        <div class="actions">
+          <a class="btn btn-light btn-lg" href="/reservar">Agendar cita</a>
+          <button class="btn btn-ghost btn-lg" type="button" data-open-chat>Preguntar al asistente</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="wrap" style="padding-bottom:56px">
+    <p class="disclaimer"><i data-icon="alert"></i><span><b>Proyecto académico.</b> MediBot 360 es una PyME ficticia creada para la
+      asignatura Sistemas Inteligentes (UACAM). Especialistas, precios, dirección, teléfonos y testimonios son de demostración.
+      Usa solo alias y datos ficticios.</span></p>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="cols">
+      <div>
+        <a class="brand" href="/sitio"><span class="brand-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span><span>MediBot 360<small>Clínica de especialidades</small></span></a>
+        <p>Recepción médica digital con agenda en línea, asistente virtual y seguimiento de pacientes.</p>
+      </div>
+      <div><h4>Pacientes</h4><a href="/reservar">Agendar cita</a><a href="/reservar#mis-citas">Consultar o cancelar</a><a href="#preguntas">Preguntas frecuentes</a></div>
+      <div><h4>Clínica</h4><a href="#especialidades">Especialidades</a><a href="#equipo">Especialistas</a><a href="#contacto">Contacto</a></div>
+      <div><h4>Personal</h4><a href="/">Consola clínica</a><a href="/docs">Documentación API</a></div>
+    </div>
+    <div class="legal"><span>© <span id="year">2026</span> MediBot 360 · Proyecto académico, datos ficticios.</span><span>No sustituye la atención médica profesional.</span></div>
+  </div>
+</footer>
+
+<script src="/static/js/common.js?v=7"></script>
+<script src="/static/js/chat.js?v=7"></script>
+<script src="/static/js/home.js?v=7"></script>
 </body>
 </html>

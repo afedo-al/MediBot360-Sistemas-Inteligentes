@@ -1,99 +1,71 @@
-# MediBot 360
+# MediBot 360 · versión Next
 
-Plataforma de coordinación de servicios médicos desarrollada como proyecto académico.
+Plataforma de una PyME médica **ficticia** (San Francisco de Campeche) con chatbot, CRM y ERP, todo gratuito y local.
 
-## Descripción
+| Módulo | Qué incluye |
+|---|---|
+| **Recepción virtual (chatbot 3.0)** | Reglas + extracción de entidades (sin IA generativa). Entiende especialidad, especialista o preferencia («con la doctora»), fechas («mañana», «el sábado», «25/11»), rangos («después de las 11», «por la mañana»), folios y acciones («lo antes posible», «dame otra opción»). Reserva por pasos con tarjetas, fechas, horarios por especialista, resumen editable y confirmación con folio + PIN. Consulta y cancelación verificadas, solicitudes a recepción, emergencias (911) y *fallback*. |
+| **CRM** | Pacientes y prospectos, embudo, fichas con historial cronológico, bandeja de solicitudes de atención humana captadas por el asistente. |
+| **ERP** | Agenda semanal, citas (web, asistente y recepción), cobros y facturas simuladas, catálogo, horarios, inventario, reportes, métricas del asistente y bitácora de auditoría. |
 
-MediBot 360 simula una empresa de servicios médicos en San Francisco de Campeche, México.
-Integra una página pública, reservaciones, chatbot, CRM, ERP y dashboard administrativo.
+Stack: Python 3.10+, FastAPI, Pydantic, SQLite, HTML/CSS/JavaScript nativo. Sin dependencias de pago.
 
-No realiza diagnósticos médicos ni procesa pagos reales.
-
-## Tecnologías
-
-- Python y FastAPI
-- SQLite
-- Jinja2
-- HTML, CSS y JavaScript
-- Chart.js
-- pytest y HTTPX
-
-## Módulos
-
-| Módulo | Qué incluye | Dónde |
-|---|---|---|
-| Portal público (catálogo) | Servicios con precios y profesionales, proceso de reserva, formulario de contacto | `/sitio`, `/reservar` |
-| Chatbot | Reglas con 11 intenciones: servicios y precios, horarios libres y equipo (datos reales de la base), reservar, consultar y cancelar con verificación, contacto, emergencias y despedida | Widget en `/sitio` |
-| CRM | Clientes con estado (prospecto, activo, inactivo), origen (sitio web, chatbot, contacto, administración), filtros, historial de interacciones y exportación CSV | `/admin/clientes` |
-| ERP | Reservaciones, catálogo, horarios, pagos simulados con reembolso, inventario con movimientos, calendario, reportes y exportación CSV | `/admin/*` |
-| Reportes | Ingresos, citas por especialidad, captación de clientes, intenciones del chatbot e inventario | `/admin/reportes` |
-
-### Cómo se conectan
-
-1. El visitante conversa con el **chatbot** o llena el **formulario de contacto**.
-2. Cada conversación y cada mensaje de contacto se registran en el **CRM** (`interactions`); el formulario crea un prospecto.
-3. Al reservar, el prospecto pasa a cliente activo y la cita entra al **ERP** (agenda, calendario, cobro simulado y reportes).
-
-## Costo de las herramientas
-
-Todo el software es gratuito y de código abierto; no se usan servicios de pago.
-
-| Componente | Uso | Licencia |
-|---|---|---|
-| Python | Lenguaje del servidor | PSF (libre) |
-| FastAPI + Uvicorn | API y servidor web | MIT / BSD |
-| SQLite | Base de datos local | Dominio público |
-| Jinja2 | Plantillas HTML | BSD |
-| Chart.js | Gráficas | MIT |
-| pytest + HTTPX | Pruebas automáticas | MIT / BSD |
-
-Un despliegue en Internet sí podría generar gastos de alojamiento y dominio.
-
-## Instalación
-
-1. Instalar Python compatible.
-2. Crear y activar un entorno virtual.
-3. Instalar dependencias:
+## Ejecutar
 
 ```powershell
-python -m pip install -r requirements-dev.txt
-```
-
-4. Crear `.env` a partir de `.env.example`.
-5. Crear el administrador:
-
-```powershell
-python create_admin.py
-```
-
-6. Iniciar el servidor:
-
-```powershell
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
 python -m uvicorn main:app --reload
 ```
 
-## Acceso
+| Ruta | Contenido |
+|---|---|
+| `/` | **Consola clínica**: inicio de sesión o dashboard si ya hay sesión |
+| `/sitio` | Portal público (con acceso a «Personal») |
+| `/reservar` | Reservación por pasos y «Mis citas» (folio + PIN) |
+| `/admin` | Redirige a `/` (compatibilidad) |
+| `/docs` | Documentación de la API |
 
-- Sitio público: http://127.0.0.1:8000/
-- Panel administrativo: http://127.0.0.1:8000/admin
-- Documentación: http://127.0.0.1:8000/docs
+Usuarios de demostración (cambia las contraseñas con `MEDIBOT_ADMIN_PASSWORD` y `MEDIBOT_RECEPCION_PASSWORD` **antes del primer arranque**; no se muestran en la interfaz):
+
+- `admin` / `Admin#2026demo` (acceso total)
+- `recepcion` / `Recepcion#2026demo` (CRM, citas, cobros, solicitudes e inventario)
+
+La clave que firma las sesiones se guarda en `.medibot_secret` (excluido de git) para que reiniciar el servidor no cierre las sesiones. En producción, defínela con `MEDIBOT_SECRET`.
+
+### Datos de demostración (opcional)
+
+```powershell
+python -m scripts.seed_demo
+```
+
+Genera pacientes, citas pasadas y futuras que respetan los horarios, cobros, solicitudes a recepción y conversaciones anónimas para las métricas. Todo es ficticio.
+
+## Consola: atajos de teclado
+
+| Atajo | Acción |
+|---|---|
+| `Ctrl + K` o `/` | Paleta de comandos y búsqueda global (pacientes, folios, facturas, módulos) |
+| `G` y luego una letra | Ir a un módulo: `D` resumen, `P` pacientes, `S` solicitudes, `A` agenda, `C` citas, `F` pagos, `R` reportes, `V` asistente |
+| `N` | Registrar una nueva cita |
+| `Esc` | Cerrar diálogos, paleta o menú móvil |
 
 ## Pruebas
 
 ```powershell
-python -m pytest tests/ -v
+pip install -r requirements-dev.txt
+python -m pytest -q tests
 ```
 
-## Seguridad
+La batería cubre lenguaje natural, fechas ambiguas, cambios de intención, correcciones, disponibilidad por especialista, reservas concurrentes, validación de identidad con PIN y límite de intentos, cancelaciones, emergencias, estado manipulado, bandeja de recepción, métricas, búsqueda y exportaciones.
 
-- Sesiones administrativas con cookies HttpOnly.
-- Contraseñas protegidas mediante PBKDF2.
-- Protección de origen en operaciones administrativas.
-- Límites básicos de intentos.
-- Encabezados HTTP de protección del navegador.
-- Transacciones SQLite en operaciones críticas.
+## Seguridad y privacidad
 
-## Alcance
-
-Todos los datos son ficticios. El proyecto es académico y demostrativo.
-No sustituye un expediente clínico, no proporciona diagnósticos y no procesa pagos reales.
+- **Servidor:** decide la validación (fechas, horarios, especialistas, duplicados con índice único y transacción) y revalida en cada mensaje el estado que envía el chat.
+- **PIN:** consultar o cancelar exige folio y PIN de 6 dígitos guardado con hash PBKDF2. Hay límite de 5 intentos por folio y por cliente, y el mensaje de error no revela si la cita existe.
+- **Personal:** contraseñas con PBKDF2, sesión firmada en cookie `HttpOnly`/`SameSite=Strict`, bloqueo por intentos y cabeceras CSP y `X-Frame-Options`.
+- **Chat:** el navegador guarda solo el estado del flujo y un historial con alias, teléfono y PIN enmascarados. Las métricas usan un identificador aleatorio y frases no comprendidas sin números ni correos.
+- **Seguridad médica:** el asistente no diagnostica, no receta y deriva emergencias al 911. Precios, especialistas, horarios y políticas salen de la base de datos y de `app/config.py`.
+- **Simulación:** pagos y facturas son simulados. Usa solo alias y datos ficticios. Para producción faltarían HTTPS, aviso de privacidad, respaldos y evaluación legal.
+- **Sin aprendizaje automático:** el asistente funciona con reglas. Las métricas sirven para que el equipo ajuste vocabulario y flujos.

@@ -1,21 +1,7 @@
-
-# Entorno y configuracion privada
-.env
 .venv/
-venv/
-
-# Bases SQLite y archivos auxiliares
-database/*.db
-database/*.db-*
-database/*.sqlite
-database/*.sqlite3
-
-# Python y pruebas
 __pycache__/
-*.py[cod]
+*.pyc
+*.db
 .pytest_cache/
-.coverage
-htmlcov/
-
-# Configuraciones locales
-.vscode/
+.env
+.medibot_secret

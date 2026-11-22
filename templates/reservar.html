@@ -1,405 +1,132 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>MediBot 360 | Reservar una cita</title>
-
-    <link rel="stylesheet" href="/static/css/style.css">
-    <link rel="stylesheet" href="/static/css/reservar.css">
-
-    <script src="/static/js/reservar.js" defer></script>
-    <link rel="stylesheet" href="/static/css/medibot-next.css?v=12d">
-    <script src="/static/js/medibot-next.js?v=12a" defer></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Agendar cita · MediBot 360</title>
+<meta name="theme-color" content="#FFFFFF">
+<link rel="icon" href="/static/img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/css/style.css?v=7">
 </head>
-
 <body>
-
-    <header class="booking-header">
-
-        <a href="/sitio" class="booking-logo">
-            <span class="logo-symbol">✚</span>
-            <span>MediBot <strong>360</strong></span>
-        </a>
-
-        <a href="/sitio" class="back-home">
-            Volver al inicio
-        </a>
-
-    </header>
-
-    <main class="booking-main">
-
-        <section class="booking-intro">
-
-            <span class="eyebrow">
-                RECEPCIÓN VIRTUAL · MEDIBOT 360
-            </span>
-
-            <h1>
-                Tu bienestar comienza
-                <span>con una cita.</span>
-            </h1>
-
-            <p>
-                Selecciona el servicio médico, encuentra un profesional
-                disponible y agenda tu consulta de manera sencilla.
-            </p>
-
-        </section>
-
-        <section class="booking-layout">
-
-            <div class="booking-form-card">
-
-                <div class="form-heading">
-
-                    <div>
-                        <span class="section-number">01 — RESERVACIÓN</span>
-                        <h2>Agenda tu consulta</h2>
-                        <p>Completa la información para solicitar tu cita.</p>
-                    </div>
-
-                    <div class="secure-icon">✦</div>
-
-                </div>
-
-                <form id="appointment-form">
-
-                    <div class="form-section">
-
-                        <div class="form-section-title">
-                            <span>1</span>
-                            <h3>Servicio médico</h3>
-                        </div>
-
-                        <div class="form-group">
-
-                            <label for="specialty">
-                                Especialidad
-                            </label>
-
-                            <select id="specialty" name="specialty" required>
-                                <option value="">
-                                    Selecciona una especialidad
-                                </option>
-                            </select>
-
-                        </div>
-
-                        <div class="form-group">
-
-                            <label for="professional">
-                                Profesional médico
-                            </label>
-
-                            <select
-                                id="professional"
-                                name="professional"
-                                disabled
-                                required
-                            >
-                                <option value="">
-                                    Primero selecciona una especialidad
-                                </option>
-                            </select>
-
-                        </div>
-
-                        <div class="service-summary" id="service-summary">
-
-                            <div class="summary-icon">✚</div>
-
-                            <div>
-                                <span>Servicio seleccionado</span>
-                                <strong id="selected-specialty">
-                                    Sin seleccionar
-                                </strong>
-                            </div>
-
-                            <div class="summary-price" id="selected-price">
-                                —
-                            </div>
-
-                        </div>
-
-                    </div>
-
-                    <div class="form-section">
-
-                        <div class="form-section-title">
-                            <span>2</span>
-                            <h3>Fecha y horario</h3>
-                        </div>
-
-                        <div class="form-group">
-
-                            <label for="appointment-date">
-                                Fecha de consulta
-                            </label>
-
-                            <input
-                                type="date"
-                                id="appointment-date"
-                                name="appointment_date"
-                                disabled
-                                required
-                            >
-
-                        </div>
-
-                        <div class="form-group">
-
-                            <label for="schedule">
-                                Horarios disponibles
-                            </label>
-
-                            <select
-                                id="schedule"
-                                name="schedule_id"
-                                disabled
-                                required
-                            >
-                                <option value="">
-                                    Selecciona primero un profesional y fecha
-                                </option>
-                            </select>
-
-                            <small id="schedule-help">
-                                Los horarios se actualizarán según la disponibilidad.
-                            </small>
-
-                        </div>
-
-                    </div>
-
-                    <div class="form-section">
-
-                        <div class="form-section-title">
-                            <span>3</span>
-                            <h3>Datos de contacto</h3>
-                        </div>
-
-                        <div class="form-group">
-
-                            <label for="full-name">
-                                Nombre completo
-                            </label>
-
-                            <input
-                                type="text"
-                                id="full-name"
-                                name="full_name"
-                                placeholder="Ej. Carlos Hernández"
-                                minlength="3"
-                                maxlength="150"
-                                autocomplete="name"
-                                required
-                            >
-
-                        </div>
-
-                        <div class="form-group">
-
-                            <label for="email">
-                                Correo electrónico
-                            </label>
-
-                            <input
-                                type="email"
-                                id="email"
-                                name="email"
-                                placeholder="correo@ejemplo.com"
-                                maxlength="150"
-                                autocomplete="email"
-                                required
-                            >
-
-                        </div>
-
-                        <div class="form-group">
-
-                            <label for="phone">
-                                Número telefónico
-                            </label>
-
-                            <input
-                                type="tel"
-                                id="phone"
-                                name="phone"
-                                placeholder="981 123 4567"
-                                minlength="10"
-                                maxlength="20"
-                                autocomplete="tel"
-                                required
-                            >
-
-                        </div>
-
-                    </div>
-
-                    <div class="booking-notice">
-
-                        <span>ⓘ</span>
-
-                        <p>
-                            Los datos proporcionados se utilizarán para
-                            gestionar tu reservación y dar seguimiento
-                            a tu solicitud.
-                        </p>
-
-                    </div>
-
-                    <div
-                        id="form-feedback"
-                        class="form-feedback"
-                        role="status"
-                        aria-live="polite"
-                        hidden
-                    ></div>
-
-                    <button
-                        type="submit"
-                        id="submit-booking"
-                        class="submit-booking"
-                        disabled
-                    >
-                        Confirmar reservación
-                        <span>→</span>
-                    </button>
-
-                    <p class="form-disclaimer">
-                        MediBot 360 es una plataforma de coordinación de servicios.
-                        No realiza diagnósticos médicos ni sustituye una consulta
-                        profesional. Ante una emergencia, acude a urgencias o llama
-                        al 911.
-                    </p>
-
-                </form>
-
+<a class="skip" href="#contenido">Saltar al contenido</a>
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="/sitio" aria-label="MediBot 360, inicio">
+      <span class="brand-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span>
+      <span>MediBot 360<small>Clínica de especialidades</small></span>
+    </a>
+    <button class="nav-toggle btn btn-ghost btn-icon" aria-label="Abrir menú" aria-expanded="false"><i data-icon="menu"></i></button>
+    <nav class="main-nav" aria-label="Principal">
+      <a href="/sitio#especialidades">Especialidades</a>
+      <a href="/sitio#equipo">Equipo</a>
+      <a href="/sitio#preguntas">Preguntas</a>
+      <a href="/reservar" aria-current="page">Agendar</a>
+    </nav>
+    <div class="header-cta"><a class="btn btn-outline btn-sm" href="/"><i data-icon="lock"></i>Personal</a></div>
+  </div>
+</header>
+
+<main id="contenido">
+  <div class="page-hero">
+    <div class="wrap">
+      <div class="crumbs"><a href="/sitio">Inicio</a> / Citas</div>
+      <h1>Agenda tu cita</h1>
+      <p>Elige especialidad, especialista, fecha y horario. Al confirmar recibirás un folio y un PIN privado.</p>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="tabs page-tabs" role="tablist" aria-label="Opciones de cita">
+      <button role="tab" id="tab-book" aria-controls="pane-book" aria-selected="true"><i data-icon="calendar"></i>Nueva cita</button>
+      <button role="tab" id="tab-look" aria-controls="pane-look" aria-selected="false"><i data-icon="search"></i>Mis citas</button>
+    </div>
+
+    <div id="pane-book" role="tabpanel" aria-labelledby="tab-book">
+      <ol class="stepper" id="stepper" aria-label="Progreso de la reservación">
+        <li class="cur"><span>Especialidad</span></li><li><span>Fecha y hora</span></li><li><span>Tus datos</span></li><li><span>Confirmación</span></li>
+      </ol>
+      <form id="book" class="booking" novalidate>
+        <div class="panel">
+          <div class="panel-sec">
+            <h2><span class="n">1</span>Especialidad</h2>
+            <div class="spec-pick" id="spec" role="radiogroup" aria-label="Especialidad">
+              <div class="sk" style="height:112px"></div><div class="sk" style="height:112px"></div><div class="sk" style="height:112px"></div>
             </div>
-
-            <aside class="booking-aside">
-
-                <div class="aside-card">
-
-                    <span class="aside-label">
-                        MEDIBOT 360
-                    </span>
-
-                    <div class="aside-symbol">✚</div>
-
-                    <h2>Atención organizada. Atención sencilla.</h2>
-
-                    <p>
-                        Gestionamos tus solicitudes de consulta desde
-                        una sola plataforma.
-                    </p>
-
-                    <div class="aside-divider"></div>
-
-                    <div class="aside-benefit">
-                        <span>✓</span>
-                        Selección de especialidad
-                    </div>
-
-                    <div class="aside-benefit">
-                        <span>✓</span>
-                        Consulta de horarios
-                    </div>
-
-                    <div class="aside-benefit">
-                        <span>✓</span>
-                        Confirmación con folio
-                    </div>
-
-                </div>
-
-                <div class="help-card">
-
-                    <div class="help-icon">?</div>
-
-                    <div>
-                        <strong>¿Necesitas ayuda?</strong>
-                        <p>
-                            Puedes utilizar nuestro chatbot desde la página principal
-                            para consultar los servicios disponibles.
-                        </p>
-                        <a href="/sitio">Ir al inicio →</a>
-                    </div>
-
-                </div>
-
-            </aside>
-
-        </section>
-
-        <section
-            id="confirmation-card"
-            class="confirmation-card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="confirmation-title"
-            hidden
-        >
-
-            <div class="confirmation-icon">✓</div>
-
-            <span class="eyebrow">RESERVACIÓN COMPLETADA</span>
-
-            <h2 id="confirmation-title">Tu solicitud ha sido confirmada.</h2>
-
-            <p id="confirmation-message">
-                Tu reservación se registró correctamente.
-            </p>
-
-            <div class="folio-container">
-
-                <span>FOLIO DE RESERVACIÓN</span>
-
-                <strong id="confirmation-folio">
-                    MB-XXXXXXXX
-                </strong>
-
-                <button
-                    type="button"
-                    id="copy-folio"
-                    class="copy-folio"
-                >
-                    Copiar folio
-                </button>
-
+          </div>
+          <div class="panel-sec">
+            <h2><span class="n">2</span>Fecha y horario</h2>
+            <div id="pro-wrap" hidden>
+              <span class="label" id="pro-label">Especialista</span>
+              <div class="pro-pick" id="pros" role="group" aria-labelledby="pro-label"></div>
             </div>
+            <span class="label" id="days-label">Fecha</span>
+            <div class="days" id="days" role="group" aria-labelledby="days-label"></div>
+            <span class="label" id="slots-label">Horarios disponibles</span>
+            <div class="slots" id="slots" role="group" aria-labelledby="slots-label" aria-live="polite"><p class="empty">Selecciona una especialidad y una fecha.</p></div>
+          </div>
+          <div class="panel-sec">
+            <h2><span class="n">3</span>Tus datos</h2>
+            <div class="field">
+              <label for="alias">Alias o nombre corto</label>
+              <input id="alias" minlength="2" maxlength="60" required placeholder="Ej. Ana P." autocomplete="nickname">
+              <p class="hint">Solo para identificar tu cita en recepción. No escribas información médica.</p>
+            </div>
+            <div class="grid-2">
+              <div class="field"><label for="phone">Teléfono <span class="hint">(opcional)</span></label><input id="phone" inputmode="numeric" maxlength="10" placeholder="10 dígitos" autocomplete="tel-national"></div>
+              <div class="field"><label for="email">Correo <span class="hint">(opcional)</span></label><input id="email" type="email" maxlength="120" placeholder="tucorreo@ejemplo.com" autocomplete="email"></div>
+            </div>
+          </div>
+        </div>
 
-            <p class="confirmation-note">
-                Guarda tu folio para futuras consultas relacionadas
-                con tu reservación.
-            </p>
+        <aside class="panel summary" aria-labelledby="sum-title">
+          <div class="panel-sec">
+            <h3 id="sum-title">Resumen de tu cita</h3>
+            <div class="sum-row"><span>Especialidad</span><b id="s-spec">—</b></div>
+            <div class="sum-row"><span>Especialista</span><b id="s-pro">—</b></div>
+            <div class="sum-row"><span>Fecha</span><b id="s-date">—</b></div>
+            <div class="sum-row"><span>Hora</span><b id="s-time">—</b></div>
+            <div class="sum-total"><span>Total a pagar en clínica</span><b id="s-price">$0</b></div>
+          </div>
+          <div class="panel-sec">
+            <button class="btn btn-primary btn-lg" id="submit" style="width:100%">Confirmar cita</button>
+            <div id="book-msg" class="msg" role="status"></div>
+            <div id="ticket" aria-live="polite"></div>
+          </div>
+        </aside>
+      </form>
+    </div>
 
-            <button
-                type="button"
-                id="new-booking"
-                class="new-booking"
-            >
-                Realizar otra reservación
-            </button>
+    <div id="pane-look" role="tabpanel" aria-labelledby="tab-look" hidden>
+      <div class="lookup">
+        <form id="lookup" class="panel" novalidate>
+          <div class="panel-sec">
+            <h2>Consultar o cancelar una cita</h2>
+            <div class="grid-2">
+              <div class="field"><label for="code">Folio</label><input id="code" maxlength="11" required placeholder="MB-XXXXXXXX" class="mono" autocapitalize="characters" spellcheck="false"></div>
+              <div class="field"><label for="lpin">PIN de 6 dígitos</label><input id="lpin" type="password" inputmode="numeric" maxlength="6" required placeholder="••••••" autocomplete="one-time-code"></div>
+            </div>
+            <p class="hint" style="margin:-8px 0 16px">Por seguridad, después de 5 intentos fallidos la consulta se bloquea durante 15 minutos.</p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-primary" id="btn-find"><i data-icon="search"></i>Consultar</button>
+              <button type="button" class="btn btn-danger" id="btn-cancel">Cancelar cita</button>
+            </div>
+            <div id="look-msg" class="msg" role="status"></div>
+          </div>
+          <div class="panel-sec" id="look-result" hidden></div>
+        </form>
+      </div>
+    </div>
+  </div>
+</main>
 
-        </section>
-
-    </main>
-
-    <footer class="booking-footer">
-
-        <p>
-            © 2026 MediBot 360. Plataforma de coordinación de servicios médicos.
-        </p>
-
-        <span>San Francisco de Campeche, Campeche.</span>
-
-    </footer>
-
+<footer class="site-footer" style="padding-top:32px">
+  <div class="wrap">
+    <div class="legal" style="border:0;padding:0"><span>© <span id="year">2026</span> MediBot 360 · Proyecto académico, datos ficticios.</span><span>Emergencias: 911</span></div>
+  </div>
+</footer>
+<script src="/static/js/common.js?v=7"></script>
+<script src="/static/js/chat.js?v=7"></script>
+<script src="/static/js/reservar.js?v=7"></script>
 </body>
-
 </html>
