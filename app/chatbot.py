@@ -27,6 +27,19 @@ from .security import check_value, sign_value
 # ------------------------------------------------------------------ vocabulario
 EMERGENCY = ("emergencia", "urgencia", "urgente", "infarto", "no puedo respirar", "dolor de pecho", "sangrado",
              "desmayo", "accidente", "me muero", "suicid", "quitarme la vida", "envenen", "convulsion", "sobredosis")
+# Síntomas de alarma descritos con distintas palabras («me duele mucho el pecho», «me falta el aire»).
+EMERGENCY_RE = re.compile(
+    r"(duele|dolor|presion|opresion|oprime|punzada)\w*\W+(?:\w+\W+){0,4}?(pecho|corazon)"
+    r"|(pecho|corazon)\W+(?:\w+\W+){0,3}?(duele|dolor|oprime)"
+    r"|falta(?:\s+de)?\s+(el\s+)?(aire|respiracion)|me\s+ahogo|no\s+puedo\s+respirar|dificultad\s+para\s+respirar"
+    r"|perdi\w*\s+(el\s+)?(conocimiento|la\s+conciencia)|me\s+desmay|sangr\w+\s+(mucho|abundante)")
+
+
+def is_emergency(msg: str) -> bool:
+    """Palabras clave o síntomas de alarma: se prioriza el aviso al 911 en cualquier punto de la conversación."""
+    return any(k in msg for k in EMERGENCY) or bool(EMERGENCY_RE.search(msg))
+
+
 HEALTH = ("me duele", "dolor", "fiebre", "diagnostico", "diagnostica", "sintoma", "medicina para", "que medicamento",
           "receta", "tengo una enfermedad", "que tomo", "que me tomo", "es grave", "tratamiento para")
 WANT = ("quiero", "necesito", "busco", "me gustaria", "quisiera", "ocupo", "dame", "agendame", "reservame")
@@ -237,7 +250,7 @@ def has_booking_entity(ent: dict) -> bool:
 
 
 def detect_intent(msg: str) -> str:
-    if any(k in msg for k in EMERGENCY):
+    if is_emergency(msg):
         return "emergencia"
     if any(k in msg for k in HEALTH):
         return "salud"
@@ -880,7 +893,9 @@ def handle(db, message: str, state: dict | None, page: str = "", session: str = 
     if msg in EXIT:
         out = R("Listo, cancelé el proceso. ¿En qué más te ayudo?", intent="salir",
                 events=[("abandon", (state or {}).get("step", "")) if st.get("flow") == "book" else ("exit", "")])
-    elif st.get("flow") and any(k in msg for k in EMERGENCY):
+    elif st.get("flow") and (is_emergency(msg) or (st["flow"] != "book" and detect_intent(msg) == "salud")):
+        # Una emergencia (o una pregunta de salud fuera de la reserva) interrumpe cualquier proceso abierto,
+        # por ejemplo una consulta de cita que esperaba el PIN.
         out = _single_turn(db, raw, msg, page, session)
     elif st.get("flow") == "book":
         intent = detect_intent(msg)

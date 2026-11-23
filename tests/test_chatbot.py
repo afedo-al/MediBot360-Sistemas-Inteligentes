@@ -49,6 +49,34 @@ def test_emergencia_interrumpe_una_reserva(client):
     assert out["intent"] == "emergencia" and out["state"] == {}
 
 
+def test_sintomas_de_alarma_muestran_911_en_cualquier_momento(client):
+    for frase in ("me duele mucho el pecho", "tengo dolor en el pecho", "me falta el aire", "creo que es un infarto"):
+        out = say(client, frase)
+        assert out["intent"] == "emergencia" and "911" in out["reply"] and out["ui"]["type"] == "emergency", frase
+
+
+def test_emergencia_interrumpe_consulta_de_cita_y_no_se_toma_como_pin(client):
+    conf = book_by_chat(client)["ui"]
+    out = say(client, "quiero consultar mi cita")
+    out = say(client, conf["code"], out["state"])
+    out = say(client, conf["pin"], out["state"])      # acceso verificado: el estado conserva el folio
+    assert out["state"]["flow"] == "consult"
+    out = say(client, "me duele mucho el pecho", out["state"])
+    assert out["intent"] == "emergencia" and "911" in out["reply"] and "PIN" not in out["reply"]
+    assert out["state"] == {}
+    # También cuando el asistente está esperando el PIN
+    out = say(client, "quiero cancelar mi cita")
+    out = say(client, conf["code"], out["state"])
+    out = say(client, "me duele mucho el pecho", out["state"])
+    assert out["intent"] == "emergencia" and "911" in out["reply"]
+
+
+def test_pregunta_de_salud_dentro_de_consulta_no_pide_pin(client):
+    out = say(client, "quiero consultar mi cita")
+    out = say(client, "me duele la cabeza", out["state"])
+    assert out["intent"] == "salud" and "no puedo dar diagnósticos" in out["reply"].lower()
+
+
 def test_fallback(client):
     out = say(client, "asdf qwerty")
     assert out["intent"] == "otro" and out["buttons"]
