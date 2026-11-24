@@ -137,10 +137,7 @@ Roles: `admin` (acceso total) y `recepcion` (CRM, citas, cobros, solicitudes e i
 
 ### Demostración desplegada
 
-| Usuario | Contraseña |
-|---|---|
-| `admin` | `stROBda9YwVgNH!55` |
-| `recepcion` | `T86hEUVeLk61pL#57` |
+Las credenciales del sitio desplegado **no se publican en este repositorio**: se entregan por separado al profesor y a quien las solicite al autor. Se configuran con las variables `MEDIBOT_ADMIN_PASSWORD` y `MEDIBOT_RECEPCION_PASSWORD`.
 
 ### Ejecución local sin variables de entorno
 
@@ -149,7 +146,7 @@ Roles: `admin` (acceso total) y `recepcion` (CRM, citas, cobros, solicitudes e i
 | `admin` | `Admin#2026demo` |
 | `recepcion` | `Recepcion#2026demo` |
 
-> Son credenciales de **demostración** y dan acceso únicamente a datos ficticios. No las reutilices en ningún otro sistema.
+> Son credenciales de **demostración** para ejecutar el proyecto en tu computadora. No las uses en un despliegue público: define tus propias variables de entorno.
 
 ## Despliegue en Vercel
 
